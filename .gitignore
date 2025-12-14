@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+venv/
+.venv/
+.idea/
+.vSCode/
+.DS_Store
+logs/
+data/
+*.ckpt
+*.pt
+*.bin
+*.safetensors
+*.sqlite
+*.db
