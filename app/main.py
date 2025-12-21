@@ -8,6 +8,7 @@ from app.athena_client import execute_query
 from app.utils import gen_request_id
 from app.permissions import get_allowed_access
 from app.request_logger import log_request, get_logs, get_log_count
+from app.display_hint import get_display_type
 import json
 
 app = FastAPI(
@@ -74,6 +75,12 @@ def execute(req: NLQRequest):
             )
             executed = True
 
+        # Determine display type based on query and results
+        display_type = "table"  # Default
+        
+        if executed and execution_data:
+            display_type = get_display_type(sql, execution_data)
+
         response = {
             "success": True,
             "sql": {
@@ -84,6 +91,9 @@ def execute(req: NLQRequest):
                 "executed": executed,
                 "row_count": execution_data["row_count"] if execution_data else None,
                 "data": execution_data
+            },
+            "display": {
+                "type": display_type
             },
             "explanation": result["explanation"],
             "trace": {

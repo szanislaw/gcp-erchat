@@ -1,0 +1,32 @@
+# 1. Stage all your changes (new files and modifications)
+git add .
+
+# 2. Commit with a message
+git commit -m "Added README, systemd service support, and formatted JSON responses"
+
+# 3. Pull and merge remote changes first (since branches have diverged)
+git pull origin master --no-rebase
+
+# 4. Push to GitHub
+git push origin master
+
+#########################################################################################################################################################
+# Check what will be added
+git status
+
+# Add specific files
+git add README.md
+git add app/main.py
+git add scripts/nlq-api.service
+git add scripts/install_service.sh
+git add scripts/start_detached.sh
+git add scripts/start_background.sh
+
+# Commit
+git commit -m "Added README, systemd service support, and formatted JSON responses"
+
+# Pull remote changes
+git pull origin master --no-rebase
+
+# Push
+git push origin master
