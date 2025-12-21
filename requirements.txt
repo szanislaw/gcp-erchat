@@ -4,3 +4,7 @@ torch
 transformers
 boto3
 accelerate
+sentencepiece
+protobuf
+sentencepiece
+protobuf

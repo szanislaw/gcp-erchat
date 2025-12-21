@@ -18,9 +18,9 @@ def load_model():
     if _model is not None:
         return
 
-    print("[BOOT] Loading SQLCoder model (this may take a few minutes)...", flush=True)
+    print("[BOOT] Loading Mistral model (this may take a few minutes)...", flush=True)
 
-    model_name = "defog/sqlcoder-7b-2"
+    model_name = "mistralai/Mistral-7B-Instruct-v0.3"
 
     _tokenizer = AutoTokenizer.from_pretrained(model_name)
 
@@ -56,7 +56,15 @@ def run_sqlcoder(prompt: str, max_tokens: int):
     load_model()
     start = time.time()
 
-    inputs = _tokenizer(prompt, return_tensors="pt").to(_model.device)
+    # Format prompt as chat message for Mistral
+    messages = [{"role": "user", "content": prompt}]
+    formatted_prompt = _tokenizer.apply_chat_template(
+        messages, 
+        tokenize=False, 
+        add_generation_prompt=True
+    )
+    
+    inputs = _tokenizer(formatted_prompt, return_tensors="pt").to(_model.device)
 
     outputs = _model.generate(
         **inputs,
@@ -67,8 +75,12 @@ def run_sqlcoder(prompt: str, max_tokens: int):
     )
 
     raw_output = _tokenizer.decode(outputs[0], skip_special_tokens=True)
+    
+    # Remove the input prompt from output
+    if formatted_prompt in raw_output:
+        raw_output = raw_output.replace(formatted_prompt, "").strip()
 
-    print("\n===== SQLCODER RAW OUTPUT =====")
+    print("\n===== MISTRAL RAW OUTPUT =====")
     print(raw_output)
     print("===== END RAW OUTPUT =====\n")
 

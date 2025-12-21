@@ -3,8 +3,8 @@ from typing import List, Optional, Literal
 
 
 class Context(BaseModel):
-    # Optional because Athena tables are not property-scoped yet
-    property_uuid: Optional[str] = None
+    account_uuid: str  # REQUIRED for access control
+    property_uuid: str  # REQUIRED for access control
     user_role: Optional[str] = None
     location_name: Optional[str] = None
     language: Literal["en", "zh", "ms", "ta"] = "en"
@@ -12,15 +12,15 @@ class Context(BaseModel):
 
 class SQLConfig(BaseModel):
     # Lock to Athena for now
+    # Tables are determined by account/property UUID permissions
     dialect: Literal["athena"]
-    tables: List[str]
 
 
 class ExecutionConfig(BaseModel):
     dry_run: bool = True
     max_rows: int = 100
     timeout_ms: int = 5000
-    athena_target: str  # REQUIRED
+    # athena_target determined by account/property UUID permissions
 
 
 class ModelConfig(BaseModel):

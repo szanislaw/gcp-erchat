@@ -5,15 +5,13 @@ def build_prompt(text, context, sql, athena_target: str) -> str:
     schema = load_schema(athena_target)
     schema_text = compress_schema(schema)
 
-    return f"""
-You are an expert SQL generator for AWS Athena (PrestoSQL).
+    return f"""You are an expert SQL generator for AWS Athena (PrestoSQL).
 
 STRICT RULES:
-- Output ONLY the SQL query
-- Do NOT include explanations
+- Output ONLY the SQL query, nothing else
+- Do NOT include explanations before or after the query
 - Do NOT include comments
-- Do NOT include code fences
-- Do NOT include the word "SQL"
+- Do NOT include markdown code fences like ```sql
 - Use PrestoSQL syntax ONLY
 - Use ONLY the columns listed below
 - Do NOT invent columns
@@ -28,8 +26,7 @@ Semantic hints:
 - For "most recent", prefer bigint timestamp columns such as created_date or incident_time
 - Do not use string date columns for recency ordering if bigint timestamps exist
 
-User request:
+Generate a SQL query for this request:
 {text}
 
-SELECT
-""".strip()
+Return only the SQL query:""".strip()
