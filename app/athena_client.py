@@ -20,11 +20,13 @@ def get_client(target_name: str):
 
     cfg = ATHENA_TARGETS[target_name]
 
+    # boto3 will automatically use AWS credentials from:
+    # 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+    # 2. AWS credentials file (~/.aws/credentials)
+    # 3. IAM role (if running on AWS EC2/ECS/Lambda)
     client = boto3.client(
         "athena",
         region_name=cfg["region"],
-        aws_access_key_id=cfg["aws_access_key_id"],
-        aws_secret_access_key=cfg["aws_secret_access_key"],
     )
 
     _ATHENA_CLIENTS[target_name] = client

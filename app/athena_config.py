@@ -1,20 +1,21 @@
 # app/athena_config.py
+import os
+
+# AWS credentials will be loaded from environment variables or AWS credential chain
+# Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables if needed
+# Or use AWS CLI configuration (~/.aws/credentials)
 
 ATHENA_TARGETS = {
     "peninsula_incident": {
-        "region": "ap-east-1",
+        "region": os.getenv("AWS_REGION", "ap-east-1"),
         "database": "peninsula-incident2",
         "tables": ["incident_combine"],
         "s3_output": "s3://athena-query-results-ap-east-1/nlq/",
-        "aws_access_key_id": "AKIAS32K2RHTLENNC44O",
-        "aws_secret_access_key": "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"
     },
     "londoner_granded": {
-        "region": "ap-east-1",
+        "region": os.getenv("AWS_REGION", "ap-east-1"),
         "database": "londoner_granded",
         "tables": ["ldco_testing"],
         "s3_output": "s3://athena-query-results-ap-east-1/nlq/",
-        "aws_access_key_id": "AKIAS32K2RHTLENNC44O",
-        "aws_secret_access_key": "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"
     }
 }
