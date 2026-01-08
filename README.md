@@ -1321,7 +1321,7 @@ For issues or questions:
 - Simplified response format with `display.type` field
 - Enhanced technical documentation in README
 
-**v0.3-prototype** (December 21, 2025)
+**v0.3-prototype** (December 19, 2025)
 - FastAPI-based architecture
 - Mistral-7B model integration
 - AWS Athena execution
