@@ -19,11 +19,13 @@ def load_schema(target_name: str) -> Dict[str, Any]:
 
     cfg = ATHENA_TARGETS[target_name]
 
+    # boto3 will automatically use AWS credentials from:
+    # 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+    # 2. AWS credentials file (~/.aws/credentials)
+    # 3. IAM role (if running on AWS EC2/ECS/Lambda)
     glue = boto3.client(
         "glue",
-        region_name=cfg["region"],
-        aws_access_key_id=cfg["aws_access_key_id"],
-        aws_secret_access_key=cfg["aws_secret_access_key"]
+        region_name=cfg["region"]
     )
 
     schema: Dict[str, Any] = {}

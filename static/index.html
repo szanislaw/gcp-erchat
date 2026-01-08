@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLQ → Athena Query Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+        }
+        
+        .main-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+        
+        .suggestions-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .suggestions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .suggestions-header h3 {
+            color: #333;
+            font-size: 1.3em;
+        }
+        
+        .toggle-suggestions {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .toggle-suggestions:hover {
+            background: #764ba2;
+        }
+        
+        .suggestion-category {
+            margin-bottom: 20px;
+        }
+        
+        .suggestion-category h4 {
+            color: #667eea;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .suggestion-item {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 3px solid #667eea;
+        }
+        
+        .suggestion-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .suggestion-query {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 3px;
+        }
+        
+        .suggestion-desc {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .schema-info {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+        
+        .schema-info strong {
+            color: #667eea;
+        }
+        
+        .query-section {
+            margin-bottom: 20px;
+        }
+        
+        .query-section label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .query-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .query-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .option-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .option-group label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        
+        .option-group input,
+        .option-group select {
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .results-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+        
+        .results-card.show {
+            display: block;
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .results-header h2 {
+            color: #333;
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .sql-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .sql-section h3 {
+            color: #555;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .sql-code {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        
+        .!-- Query Suggestions Panel -->
+        <div id="suggestionsPanel" class="suggestions-panel" style="display: none;">
+            <div class="suggestions-header">
+                <h3>📚 Suggested Queries</h3>
+                <button class="toggle-suggestions" onclick="toggleSuggestions()">Hide</button>
+            </div>
+            <div id="suggestionsContent">
+                <p style="text-align: center; color: #666;">Loading suggestions...</p>
+            </div>
+        </div>
+        
+        <data-table {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .info-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        
+        .info-item label {
+            font-size: 12px;
+            color: #666;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .info-item value {
+            font-weight: 600;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 NLQ → Athena Query Interface</h1>
+            <p>Ask questions in natural language and execute SQL queries on AWS Athena</p>
+        </div>
+        
+        <div class="main-card">
+            <form id="queryForm">
+                <div class="query-section">
+                    <label for="queryText">Your Question</label>
+                    <input 
+                        type="text" 
+                        id="queryText" 
+                        class="query-input" 
+                        placeholder="e.g., show me recent incidents"
+                        required
+                    >
+                </div>
+                
+                <div class="options-grid">
+                    <div class="option-group">
+                        <label>Account UUID</label>
+                        <input 
+                            type="text" 
+                            id="accountUuid" 
+                            value="00000000-0000-0000-0000-000000000000"
+                        >
+                    </div>
+                    
+                    <div class="option-group">
+                        <label>Property UUID</label>
+                        <input 
+                            type="text" 
+                            id="propertyUuid" 
+                            value="00000000-0000-0000-0000-000000000000"
+                        >
+                    </div>
+                    
+                    <div class="option-group">
+                        <label>Max Rows</label>
+                        <input 
+                            type="number" 
+                            id="maxRows" 
+                            value="10" 
+                            min="1" 
+                            max="1000"
+                        >
+                    </div>
+                    
+                    <div class="option-group">
+                        <label>Max Tokens</label>
+                        <input 
+                            type="number" 
+                            id="maxTokens" 
+                            value="512" 
+                            mibutton" class="btn btn-primary" onclick="toggleSuggestions()" style="margin-bottom: 15px; background: #28a745;">
+                    💡 Show Query Suggestions
+                </button>
+                
+                <button type="n="100" 
+                            max="2048"
+                        >
+                    </div>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="dryRun">
+                    <label for="dryRun">Dry Run (generate SQL only, don't execute)</label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    Execute Query
+                </button>
+            </form>
+        </div>
+        
+        <div id="resultsCard" class="results-card">
+            <div class="results-header">
+                <h2>Query Results</h2>
+                <span id="statusBadge" class="status-badge"></span>
+            </div>
+            
+            <div id="resultsContent"></div>
+        </div>
+    </div>
+    
+    <script>
+        const form = document.getElementById('queryForm');
+        
+        // Load suggestions on page load
+        window.addEventListener('load', loadSuggestions);
+        
+        function toggleSuggestions() {
+            const panel = document.getElementById('suggestionsPanel');
+            const isVisible = panel.style.display !== 'none';
+            panel.style.display = isVisible ? 'none' : 'block';
+            
+            if (!isVisible && panel.querySelector('#suggestionsContent p')) {
+                loadSuggestions();
+            }
+        }
+        
+        async function loadSuggestions() {
+            const content = document.getElementById('suggestionsContent');
+            
+            try {
+                const response = await fetch('/nlq/suggestions?target=peninsula_incident');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displaySuggestions(data.suggestions);
+                    
+                    // Also load schema info
+                    const schemaResponse = await fetch('/nlq/schema?target=peninsula_incident');
+                    const schemaData = await schemaResponse.json();
+                    displaySchemaInfo(schemaData);
+                } else {
+                    content.innerHTML = '<p style="color: #dc3545;">Failed to load suggestions</p>';
+                }
+            } catch (error) {
+                content.innerHTML = '<p style="color: #dc3545;">Error loading suggestions</p>';
+            }
+        }
+        
+        function displaySuggestions(suggestions) {
+            const content = document.getElementById('suggestionsContent');
+            
+            // Group suggestions by category
+            const grouped = {};
+            suggestions.forEach(s => {
+                if (!grouped[s.category]) {
+                    grouped[s.category] = [];
+                }
+                grouped[s.category].push(s);
+            });
+            
+            let html = '';
+            for (const [category, items] of Object.entries(grouped)) {
+                html += `<div class="suggestion-category">`;
+                html += `<h4>${category}</h4>`;
+                items.slice(0, 5).forEach(item => {
+                    html += `<div class="suggestion-item" onclick="useSuggestion('${escapeHtml(item.query)}')">`;
+                    html += `<div class="suggestion-query">${escapeHtml(item.query)}</div>`;
+                    html += `<div class="suggestion-desc">${escapeHtml(item.description)}</div>`;
+                    html += `</div>`;
+                });
+                html += `</div>`;
+            }
+            
+            content.innerHTML = html;
+        }
+        
+        function displaySchemaInfo(schema) {
+            const content = document.getElementById('suggestionsContent');
+            
+            let html = '<div class="schema-info">';
+            html += `<strong>Database:</strong> ${schema.database} (${schema.region})<br>`;
+            
+            schema.tables.forEach(table => {
+                html += `<br><strong>Table:</strong> ${table.name}<br>`;
+                html += `<strong>Columns:</strong> ${table.total_columns} total `;
+                html += `(${table.column_types.numeric} numeric, ${table.column_types.date} date, `;
+                html += `${table.column_types.categorical} categorical)<br>`;
+                
+                if (table.key_columns.dates.length > 0) {
+                    html += `<strong>Date columns:</strong> ${table.key_columns.dates.join(', ')}<br>`;
+                }
+                
+                if (table.key_columns.categories.length > 0) {
+                    html += `<strong>Categories:</strong> ${table.key_columns.categories.slice(0, 5).join(', ')}<br>`;
+                }
+            });
+            
+            html += '</div>';
+            content.innerHTML += html;
+        }
+        
+        function useSuggestion(query) {
+            document.getElementById('queryText').value = query;
+            toggleSuggestions();
+            // Smooth scroll to form
+            document.getElementById('queryText').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.getElementById('queryText').focus();
+        }
+        const resultsCard = document.getElementById('resultsCard');
+        const resultsContent = document.getElementById('resultsContent');
+        const statusBadge = document.getElementById('statusBadge');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const queryText = document.getElementById('queryText').value;
+            const accountUuid = document.getElementById('accountUuid').value;
+            const propertyUuid = document.getElementById('propertyUuid').value;
+            const maxRows = parseInt(document.getElementById('maxRows').value);
+            const maxTokens = parseInt(document.getElementById('maxTokens').value);
+            const dryRun = document.getElementById('dryRun').checked;
+            
+            const requestData = {
+                text: queryText,
+                context: {
+                    account_uuid: accountUuid,
+                    property_uuid: propertyUuid,
+                    language: "en"
+                },
+                sql: { dialect: "athena" },
+                execution: { 
+                    dry_run: dryRun, 
+                    max_rows: maxRows 
+                },
+                model: { max_tokens: maxTokens },
+                trace: { source: "web-gui" }
+            };
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+            resultsCard.classList.add('show');
+            resultsContent.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Generating and executing query...</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/nlq/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    displayResults(data);
+                } else {
+                    displayError(data.detail || 'An error occurred');
+                }
+            } catch (error) {
+                displayError(error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Execute Query';
+            }
+        });
+        
+        function displayResults(data) {
+            statusBadge.textContent = 'Success';
+            statusBadge.className = 'status-badge status-success';
+            
+            let html = '';
+            
+            // Info section
+            html += '<div class="info-section">';
+            html += `<div class="info-item"><label>Request ID</label><value>${data.trace.request_id}</value></div>`;
+            html += `<div class="info-item"><label>Latency</label><value>${data.trace.latency_ms}ms</value></div>`;
+            html += `<div class="info-item"><label>Confidence</label><value>${(data.sql.confidence * 100).toFixed(1)}%</value></div>`;
+            html += `<div class="info-item"><label>Row Count</label><value>${data.execution.row_count || 0}</value></div>`;
+            html += '</div>';
+            
+            // SQL section
+            html += '<div class="sql-section">';
+            html += '<h3>Generated SQL Query</h3>';
+            html += `<div class="sql-code">${escapeHtml(data.sql.query)}</div>`;
+            html += '</div>';
+            
+            // Data table
+            if (data.execution.executed && data.execution.data && data.execution.data.rows.length > 0) {
+                html += '<div class="data-table">';
+                html += '<h3>Results</h3>';
+                html += '<table>';
+                html += '<thead><tr>';
+                data.execution.data.columns.forEach(col => {
+                    html += `<th>${escapeHtml(col)}</th>`;
+                });
+                html += '</tr></thead>';
+                html += '<tbody>';
+                data.execution.data.rows.forEach(row => {
+                    html += '<tr>';
+                    data.execution.data.columns.forEach(col => {
+                        html += `<td>${escapeHtml(row[col] || '')}</td>`;
+                    });
+                    html += '</tr>';
+                });
+                html += '</tbody>';
+                html += '</table>';
+                html += '</div>';
+            } else if (data.execution.executed) {
+                html += '<p style="text-align: center; color: #666; padding: 20px;">No results returned</p>';
+            }
+            
+            resultsContent.innerHTML = html;
+        }
+        
+        function displayError(message) {
+            statusBadge.textContent = 'Error';
+            statusBadge.className = 'status-badge status-error';
+            
+            resultsContent.innerHTML = `
+                <div class="error-message">
+                    <strong>Error:</strong> ${escapeHtml(message)}
+                </div>
+            `;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

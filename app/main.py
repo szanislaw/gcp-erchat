@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from app.models import NLQRequest
 from app.prompt import build_prompt
 from app.sqlcoder import run_sqlcoder
@@ -9,12 +10,19 @@ from app.utils import gen_request_id
 from app.permissions import get_allowed_access
 from app.request_logger import log_request, get_logs, get_log_count
 from app.display_hint import get_display_type
+from app.query_suggestions import generate_query_suggestions, get_schema_summary
 import json
+import os
 
 app = FastAPI(
     title="NLQ → Athena SQL API",
     version="0.3-prototype"
 )
+
+# Mount static files
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 class PrettyJSONResponse(JSONResponse):
@@ -27,6 +35,16 @@ class PrettyJSONResponse(JSONResponse):
             indent=2,
             separators=(", ", ": "),
         ).encode("utf-8")
+
+
+@app.get("/")
+def read_root():
+    """Serve the web GUI"""
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+    index_file = os.path.join(static_dir, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    return {"message": "NLQ → Athena SQL API", "version": "0.3-prototype", "gui": "not available"}
 
 
 @app.post("/nlq/execute", response_class=PrettyJSONResponse)
@@ -136,3 +154,31 @@ def view_logs(limit: int = 100):
         "total_logs": get_log_count(),
         "logs": get_logs(limit=min(limit, 100))
     }
+
+
+@app.get("/nlq/suggestions", response_class=PrettyJSONResponse)
+def get_suggestions(target: str = "peninsula_incident"):
+    """
+    Get suggested queries based on database schema.
+    """
+    try:
+        suggestions = generate_query_suggestions(target)
+        return {
+            "target": target,
+            "total_suggestions": len(suggestions),
+            "suggestions": suggestions
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/nlq/schema", response_class=PrettyJSONResponse)
+def get_schema(target: str = "peninsula_incident"):
+    """
+    Get database schema summary.
+    """
+    try:
+        summary = get_schema_summary(target)
+        return summary
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -16,3 +16,4 @@ data/
 *.sqlite
 *.db
 archive/
+app/athena_config.py

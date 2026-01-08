@@ -1,10 +1,16 @@
+# Web framework
 fastapi
 uvicorn
+pydantic
+
+# AWS integration
+boto3
+
+# ML/AI dependencies
 torch
 transformers
-boto3
+
+# Optional: accelerators and tokenizers (may be required by transformers)
 accelerate
 sentencepiece
-protobuf
-sentencepiece
-protobuf
+protobuf    
