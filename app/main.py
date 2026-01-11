@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.models import NLQRequest
 from app.prompt import build_prompt
-from app.sqlcoder import run_sqlcoder
+from app.sqlcoder import run_sqlcoder, load_model
 from app.security import validate_sql
 from app.athena_client import execute_query
 from app.utils import gen_request_id
@@ -18,6 +18,14 @@ app = FastAPI(
     title="NLQ → Athena SQL API",
     version="0.3-prototype"
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Preload the ML model during server startup to avoid first-query delay"""
+    print("[STARTUP] Preloading ML model...", flush=True)
+    load_model()
+    print("[STARTUP] Model preloaded successfully! Ready to handle queries.", flush=True)
 
 # Mount static files
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")

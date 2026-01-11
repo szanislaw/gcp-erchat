@@ -3,6 +3,11 @@ fastapi
 uvicorn
 pydantic
 
+# Streamlit UI
+streamlit
+pandas
+requests
+
 # AWS integration
 boto3
 

@@ -24,9 +24,9 @@ class ExecutionConfig(BaseModel):
 
 
 class ModelConfig(BaseModel):
-    name: str = "defog/sqlcoder-7b-2"
+    name: str = "Ellbendls/Qwen-2.5-3b-Text_to_SQL"
     temperature: float = 0.0
-    max_tokens: int = 512
+    max_tokens: int = 256  # Usually sufficient for SQL queries
 
 
 class Trace(BaseModel):
