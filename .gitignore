@@ -1,13 +1,38 @@
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Environment
 .env
 .env.*
+!.env.example
 venv/
 .venv/
+env/
+ENV/
+
+# IDE
 .idea/
-.vSCode/
+.vscode/
 .DS_Store
-logs/
+*.swp
+*.swo
+*~
+
+# Application logs
+logs/*.log
+logs/*.json
+*.log
+
+# Data & Models
 data/
 *.ckpt
 *.pt
@@ -15,5 +40,10 @@ data/
 *.safetensors
 *.sqlite
 *.db
-archive/
+
+# Test & Development (kept in repo under test/)
+# test/
+
+# Sensitive configs
 app/athena_config.py
+app/permissions_config.py

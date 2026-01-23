@@ -1,23 +1,104 @@
 import re
+from typing import List, Set
 
-FORBIDDEN = re.compile(r"\b(drop|delete|update|insert|alter|truncate)\b", re.I)
-ATHENA_UNSUPPORTED = ["distinct on", "returning"]
+# Forbidden SQL operations (case-insensitive)
+FORBIDDEN = re.compile(r"\b(drop|delete|update|insert|alter|truncate|grant|revoke|create)\b", re.I)
+ATHENA_UNSUPPORTED = ["distinct on", "returning", "for update", "for share"]
 
-def validate_sql(sql: str, allowed_tables: list[str], dialect: str):
+# Comprehensive table extraction patterns for ~90% accuracy
+TABLE_PATTERNS = [
+    r'\bfrom\s+([a-zA-Z_][\w]*)',                          # FROM table
+    r'\bjoin\s+([a-zA-Z_][\w]*)',                          # JOIN table  
+    r'\binner\s+join\s+([a-zA-Z_][\w]*)',                  # INNER JOIN table
+    r'\bleft\s+(?:outer\s+)?join\s+([a-zA-Z_][\w]*)',      # LEFT [OUTER] JOIN table
+    r'\bright\s+(?:outer\s+)?join\s+([a-zA-Z_][\w]*)',     # RIGHT [OUTER] JOIN table
+    r'\bfull\s+(?:outer\s+)?join\s+([a-zA-Z_][\w]*)',      # FULL [OUTER] JOIN table
+    r'\bcross\s+join\s+([a-zA-Z_][\w]*)',                  # CROSS JOIN table
+    r'\bnatural\s+join\s+([a-zA-Z_][\w]*)',                # NATURAL JOIN table
+]
+
+# SQL keywords that should not be treated as table names
+SQL_KEYWORDS = {
+    'select', 'from', 'where', 'and', 'or', 'not', 'in', 'is', 'null',
+    'true', 'false', 'as', 'on', 'using', 'group', 'by', 'order', 'having',
+    'limit', 'offset', 'union', 'intersect', 'except', 'case', 'when', 'then',
+    'else', 'end', 'cast', 'between', 'like', 'ilike', 'exists', 'any', 'all',
+    'distinct', 'asc', 'desc', 'nulls', 'first', 'last', 'over', 'partition',
+    'row', 'rows', 'range', 'preceding', 'following', 'current', 'unbounded',
+    'lateral', 'cross', 'inner', 'outer', 'left', 'right', 'full', 'natural',
+    'join', 'with', 'recursive', 'values', 'default', 'set', 'coalesce',
+    'greatest', 'least', 'date', 'time', 'timestamp', 'interval'
+}
+
+
+def extract_tables(sql: str) -> Set[str]:
+    """
+    Extract all table names from SQL query using comprehensive pattern matching.
+    Filters out SQL keywords that might be falsely detected as table names.
+    
+    Args:
+        sql: SQL query string
+        
+    Returns:
+        Set of table names found in query (lowercase)
+    """
+    if not sql:
+        return set()
+    
+    found_tables = set()
+    sql_lower = sql.lower()
+    
+    for pattern in TABLE_PATTERNS:
+        matches = re.findall(pattern, sql_lower, re.IGNORECASE)
+        for match in matches:
+            # Filter out SQL keywords
+            if match.lower() not in SQL_KEYWORDS:
+                found_tables.add(match.lower())
+    
+    return found_tables
+
+
+def validate_sql(sql: str, allowed_tables: List[str], dialect: str) -> str:
+    """
+    Validate SQL query for security and authorization.
+    
+    Args:
+        sql: SQL query string
+        allowed_tables: List of tables the user is allowed to query
+        dialect: SQL dialect (e.g., 'athena')
+        
+    Returns:
+        The validated SQL string
+        
+    Raises:
+        ValueError: If SQL fails validation
+    """
     if not sql:
         raise ValueError("Empty SQL")
+    
+    sql_stripped = sql.strip()
+    
+    # Check for forbidden operations
+    if FORBIDDEN.search(sql_stripped):
+        forbidden_match = FORBIDDEN.search(sql_stripped)
+        raise ValueError(f"Forbidden SQL operation: {forbidden_match.group()}")
 
-    if FORBIDDEN.search(sql):
-        raise ValueError("Forbidden SQL operation")
-
+    # Check for dialect-specific unsupported features
     if dialect == "athena":
+        sql_lower = sql_stripped.lower()
         for kw in ATHENA_UNSUPPORTED:
-            if kw in sql.lower():
+            if kw in sql_lower:
                 raise ValueError(f"Athena does not support: {kw}")
 
-    tables = re.findall(r"from\s+([a-zA-Z_][\w]*)", sql, re.I)
-    for t in tables:
-        if t not in allowed_tables:
-            raise ValueError(f"Table not allowed: {t}")
+    # Extract and validate tables - case-insensitive comparison
+    found_tables = extract_tables(sql_stripped)
+    allowed_tables_lower = set(t.lower() for t in allowed_tables)
+    
+    unauthorized_tables = found_tables - allowed_tables_lower
+    if unauthorized_tables:
+        raise ValueError(
+            f"Unauthorized table(s): {', '.join(sorted(unauthorized_tables))}. "
+            f"Allowed tables: {', '.join(allowed_tables)}"
+        )
 
-    return sql
+    return sql_stripped

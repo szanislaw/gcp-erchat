@@ -1,9 +1,40 @@
 from app.schema_loader import load_schema, compress_schema
+from app.query_normalizer import preprocess_query
+from app.user_table_permissions import get_property_name
+from typing import Optional
 
 
-def build_prompt(text, context, sql, athena_target: str) -> str:
+def build_prompt(text, context, sql, athena_target: str, property_uuid: Optional[str] = None, user_uuid: Optional[str] = None) -> str:
     schema = load_schema(athena_target)
     schema_text = compress_schema(schema)
+    
+    # Get property name if user_uuid is provided (for access control)
+    property_name = None
+    if user_uuid and property_uuid:
+        property_name = get_property_name(property_uuid)
+    
+    # Preprocess the query to normalize entity names
+    normalized_text, matched_entities, entity_hints = preprocess_query(text)
+    
+    # Build entity context section if entities were matched
+    entity_context = ""
+    if matched_entities:
+        entity_context = f"""
+DETECTED ENTITIES (use these exact values):
+{entity_hints}
+"""
+
+    # Build property restriction if property name is provided (from user UUID validation)
+    property_restriction = ""
+    if property_name:
+        property_restriction = f"""
+⚠️ CRITICAL: USER ACCESS RESTRICTION ⚠️
+- This user can ONLY access data for: {property_name}
+- You MUST add: WHERE property_name = '{property_name}'
+- If query already has WHERE, use AND: WHERE ... AND property_name = '{property_name}'
+- This is MANDATORY for all queries - no exceptions
+- Do NOT access data from other properties
+"""
 
     return f"""You are an expert SQL generator for AWS Athena (PrestoSQL).
 
@@ -21,7 +52,7 @@ STRICT RULES:
 - Use LOWERCASE for categorical values (severity_name, status_name, etc.)
 - Use EXACT CASE for property names and location names (e.g., 'The Peninsula Manila')
 - Use LOWER() function for case-insensitive matching when needed
-
+{property_restriction}
 DATE FILTERING RULES (MANDATORY):
 - snapshotdate is a STRING - ALWAYS write: date_parse(snapshotdate, '%Y-%m-%d')
 - For any date comparisons: date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -X, current_date)
@@ -31,7 +62,7 @@ DATE FILTERING RULES (MANDATORY):
 
 Available tables and schemas:
 {schema_text}
-
+{entity_context}
 Semantic hints:
 - For "most recent", prefer bigint timestamp columns such as created_date or incident_time
 - Do not use string date columns for recency ordering if bigint timestamps exist
@@ -41,6 +72,12 @@ Semantic hints:
 - property_name = hotel/property name (e.g., 'The Peninsula Manila', 'The Peninsula London')
 - location_name = room number or specific location within property (e.g., 'Room 1018', 'Lobby')
 - When filtering by hotel/property, use property_name column, NOT location_name
+
+PROPERTY NAME ALIASES (use canonical names):
+- "Peninsula Bangkok", "Pen Bangkok" → 'The Peninsula Bangkok'
+- "Peninsula Manila", "Manila Peninsula" → 'The Peninsula Manila'  
+- "Peninsula HK", "HK Peninsula" → 'The Peninsula Hong Kong'
+- "Londoner", "Londoner Macao" → 'The Londoner Macao'
 
 Date/Time handling:
 Step-by-step for ANY date query:
@@ -59,6 +96,6 @@ Wrong examples (cause errors):
 ✗ WHERE ... INTERVAL -14 DAY ... (INTERVAL keyword not supported!)
 
 Generate a SQL query for this request:
-{text}
+{normalized_text}
 
 Return only the SQL query:""".strip()

@@ -3,6 +3,9 @@ fastapi
 uvicorn
 pydantic
 
+# Environment variables
+python-dotenv
+
 # Streamlit UI
 streamlit
 pandas

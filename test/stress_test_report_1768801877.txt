@@ -1,0 +1,125 @@
+
+================================================================================
+STRESS TEST RESULTS SUMMARY
+================================================================================
+Server: http://localhost:8000
+Timestamp: 2026-01-19 13:51:17
+
+--------------------------------------------------------------------------------
+Category: BASIC_FUNCTIONALITY
+--------------------------------------------------------------------------------
+  Total Requests:    5
+  Successful:        5
+  Failed:            0
+  Success Rate:      100.0%
+  Avg Latency:       2876ms
+  P50 Latency:       2604ms
+  P95 Latency:       4053ms
+  P99 Latency:       4053ms
+  Max Latency:       4053ms
+  Status Codes:      {200: 5}
+
+--------------------------------------------------------------------------------
+Category: EDGE_CASES
+--------------------------------------------------------------------------------
+  Total Requests:    18
+  Successful:        18
+  Failed:            0
+  Success Rate:      100.0%
+  Avg Latency:       2278ms
+  P50 Latency:       2722ms
+  P95 Latency:       4066ms
+  P99 Latency:       4066ms
+  Max Latency:       4066ms
+  Status Codes:      {422: 2, 200: 10, 400: 6}
+
+--------------------------------------------------------------------------------
+Category: MALFORMED_REQUESTS
+--------------------------------------------------------------------------------
+  Total Requests:    7
+  Successful:        7
+  Failed:            0
+  Success Rate:      100.0%
+  Avg Latency:       0ms
+  P50 Latency:       0ms
+  P95 Latency:       1ms
+  P99 Latency:       1ms
+  Max Latency:       1ms
+  Status Codes:      {422: 7}
+
+--------------------------------------------------------------------------------
+Category: SQL_INJECTION
+--------------------------------------------------------------------------------
+  Total Requests:    8
+  Successful:        8
+  Failed:            0
+  Success Rate:      100.0%
+  Avg Latency:       1578ms
+  P50 Latency:       1246ms
+  P95 Latency:       4000ms
+  P99 Latency:       4000ms
+  Max Latency:       4000ms
+  Status Codes:      {400: 6, 200: 2}
+
+--------------------------------------------------------------------------------
+Category: CONCURRENT_REQUESTS
+--------------------------------------------------------------------------------
+  Total Requests:    5
+  Successful:        5
+  Failed:            0
+  Success Rate:      100.0%
+  Avg Latency:       12890ms
+  P50 Latency:       12856ms
+  P95 Latency:       14177ms
+  P99 Latency:       14177ms
+  Max Latency:       14177ms
+  Status Codes:      {200: 5}
+
+--------------------------------------------------------------------------------
+Category: BURST_TRAFFIC
+--------------------------------------------------------------------------------
+  Total Requests:    10
+  Successful:        10
+  Failed:            0
+  Success Rate:      100.0%
+  Avg Latency:       23987ms
+  P50 Latency:       24269ms
+  P95 Latency:       24699ms
+  P99 Latency:       24699ms
+  Max Latency:       24699ms
+  Status Codes:      {200: 10}
+
+--------------------------------------------------------------------------------
+Category: SUSTAINED_LOAD
+--------------------------------------------------------------------------------
+  Total Requests:    11
+  Successful:        11
+  Failed:            0
+  Success Rate:      100.0%
+  Avg Latency:       2858ms
+  P50 Latency:       2608ms
+  P95 Latency:       4043ms
+  P99 Latency:       4043ms
+  Max Latency:       4043ms
+  Status Codes:      {200: 11}
+
+--------------------------------------------------------------------------------
+Category: OTHER_ENDPOINTS
+--------------------------------------------------------------------------------
+  Total Requests:    3
+  Successful:        3
+  Failed:            0
+  Success Rate:      100.0%
+  Status Codes:      {200: 3}
+
+================================================================================
+OVERALL SUMMARY
+================================================================================
+  Total Requests:    67
+  Total Successful:  67
+  Overall Success:   100.0%
+  Overall Avg Lat:   6309ms
+  Overall P95 Lat:   24631ms
+  Memory Usage:      37.0MB (0.1%)
+
+================================================================================

@@ -3,14 +3,13 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from dotenv import load_dotenv
 from app.models import NLQRequest
 from app.prompt import build_prompt
-from app.sqlcoder import run_sqlcoder, load_model
+from app.sqlcoder_v2 import run_sqlcoder, load_model
 from app.security import validate_sql
 from app.athena_client import execute_query
 from app.utils import gen_request_id
-from app.permissions import get_allowed_access, validate_access_with_user
+from app.permissions import get_allowed_access
 from app.request_logger import log_request, get_logs, get_log_count
 from app.display_hint import get_display_type
 from app.query_suggestions import generate_query_suggestions, get_schema_summary
@@ -22,9 +21,6 @@ import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import logging
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -156,7 +152,7 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
                 headers={"Retry-After": str(int(rate_check.retry_after) + 1)}
             )
 
-        # Step 3: Authorization Check (account/property level)
+        # Step 3: Authorization Check
         access = get_allowed_access(req.context.account_uuid, req.context.property_uuid)
         if access is None:
             raise HTTPException(
@@ -167,26 +163,13 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
         # Use the first athena target - in future could support multi-target queries
         athena_target = access["athena_targets"][0]
         allowed_tables = access["tables"]
-        
-        # Step 3b: User-level table validation (if user_uuid provided)
-        # This will be validated again after SQL generation, but pre-check here
-        if req.context.user_uuid:
-            try:
-                from app.permissions import validate_user_table_access
-                # Pre-validate that user has access to at least some tables in this account
-                validate_user_table_access(req.context.user_uuid, req.context.property_uuid, allowed_tables)
-            except Exception as e:
-                logger.warning(f"User validation warning: {e}")
-                # Don't fail here, will validate against actual tables in SQL later
 
         # Step 4: Build Prompt
         prompt = build_prompt(
             text=sanitized_text,
             context=req.context,
             sql=req.sql,
-            athena_target=athena_target,
-            property_uuid=req.context.property_uuid,
-            user_uuid=req.context.user_uuid
+            athena_target=athena_target
         )
 
         # Step 5: Run Model Inference (non-blocking)
@@ -204,20 +187,6 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             allowed_tables,
             req.sql.dialect
         )
-        
-        # Step 6b: Validate user-level table access (if user_uuid provided)
-        if req.context.user_uuid:
-            # Extract tables from SQL and validate user has access
-            from app.permissions import validate_tables_in_sql, validate_user_table_access
-            try:
-                tables_in_sql = validate_tables_in_sql(sql, allowed_tables)
-                validate_user_table_access(req.context.user_uuid, tables_in_sql)
-                logger.info(f"User {req.context.user_uuid} validated for tables: {tables_in_sql}")
-            except Exception as perm_error:
-                raise HTTPException(
-                    status_code=403,
-                    detail=str(perm_error)
-                )
 
         # Step 7: Execute Query (if not dry run)
         execution_data = None
