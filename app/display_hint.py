@@ -11,10 +11,11 @@ def get_display_type(sql: str, execution_data: Dict[str, Any]) -> str:
     Uses hardcoded heuristics based on SQL query patterns and result structure.
     
     Display types:
-    - "line": Time series data (best for line graphs)
+    - "line": Time series data with aggregations (best for line graphs)
     - "bar": Categorical aggregations (best for bar charts)
     - "pie": Single metric with categories (best for pie charts)
-    - "table": Default tabular view (default)
+    - "metric": Single numeric value (best for KPI cards)
+    - "table": Default tabular view (default for raw records)
     
     Args:
         sql: The SQL query that was executed
@@ -32,12 +33,21 @@ def get_display_type(sql: str, execution_data: Dict[str, Any]) -> str:
     row_count = len(rows)
     col_count = len(columns)
     
-    # Check for time series patterns
-    if _is_time_series(sql_lower, columns):
+    # Single value result (e.g., COUNT(*)) - use metric/card display
+    if row_count == 1 and col_count == 1:
+        return "metric"
+    
+    # Single row with few columns - also metric-like
+    if row_count == 1 and col_count <= 3 and _has_aggregation(sql_lower):
+        return "metric"
+    
+    # Check for time series patterns - MUST have aggregation + time grouping
+    # Raw records with date columns should NOT be line charts
+    if _is_time_series(sql_lower, columns) and _has_aggregation(sql_lower) and _has_group_by(sql_lower):
         return "line"
     
     # Check for pie chart candidates (single metric with categories, limited rows)
-    if col_count == 2 and row_count <= 10 and _has_aggregation(sql_lower):
+    if col_count == 2 and row_count <= 10 and _has_aggregation(sql_lower) and _has_group_by(sql_lower):
         return "pie"
     
     # Check for bar chart candidates (aggregations with GROUP BY)
@@ -47,33 +57,29 @@ def get_display_type(sql: str, execution_data: Dict[str, Any]) -> str:
         else:
             return "table"  # Too many rows for bar chart
     
-    # Default to table view
+    # Default to table view (raw records, SELECT *, etc.)
     return "table"
 
 
 def _is_time_series(sql: str, columns: List[str]) -> bool:
     """
-    Detect if query is likely a time series.
-    Looks for date/time columns and time-based grouping.
+    Detect if query is likely a time series aggregation.
+    Requires:
+    - Time-related column in GROUP BY (not just in SELECT)
+    - Aggregation function (COUNT, SUM, etc.)
+    - Time-related grouping pattern
     """
-    # Common time-related column patterns
-    time_patterns = [
-        r'\bdate\b', r'\btime\b', r'\btimestamp\b', 
-        r'\byear\b', r'\bmonth\b', r'\bday\b',
-        r'\bcreated\b', r'\bupdated\b', r'\boccurred\b'
+    # Check for time-related GROUP BY patterns (actual time series)
+    time_group_patterns = [
+        r'group\s+by\s+[^,]*\b(date|year|month|week|day)\b',
+        r'group\s+by\s+[^,]*date_trunc',
+        r'group\s+by\s+[^,]*extract\s*\(',
+        r'group\s+by\s+[^,]*snapshotdate',
+        r'group\s+by\s+[^,]*created_date',
     ]
     
-    # Check SQL for time-related terms
-    for pattern in time_patterns:
-        if re.search(pattern, sql):
-            # Also check for ORDER BY (common in time series)
-            if 'order by' in sql:
-                return True
-    
-    # Check column names
-    for col in columns:
-        col_lower = col.lower()
-        if any(term in col_lower for term in ['date', 'time', 'year', 'month', 'day', 'created', 'updated']):
+    for pattern in time_group_patterns:
+        if re.search(pattern, sql, re.IGNORECASE):
             return True
     
     return False

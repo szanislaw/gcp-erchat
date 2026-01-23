@@ -5,12 +5,49 @@ from typing import Dict
 
 # Maps (account_uuid, property_uuid) tuples to allowed Athena targets and tables
 PERMISSIONS_MAPPING: Dict[tuple, Dict[str, any]] = {
-    # Super user - full access to all targets and tables
+    # ============================================================================
+    # SUPER ADMIN - Full access
+    # ============================================================================
     ("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000"): {
         "athena_targets": ["peninsula_incident", "londoner_granded"],
-        "tables": ["incident_combine", "ldco_testing"]
+        "tables": ["incident_combine", "incident_history", "incident_analytics", "ldco_testing"]
     },
     
+    # ============================================================================
+    # PENINSULA HOTELS - Main Account
+    # ============================================================================
+    # The Peninsula Hong Kong
+    ("149cd8f0-00e1-43a4-840b-6a54b4f857f6", "8afe7e5e-22e5-4318-b5c7-f967fc44e81f"): {
+        "athena_targets": ["peninsula_incident"],
+        "tables": ["incident_combine", "incident_history", "incident_analytics"]
+    },
+    # The Peninsula Manila
+    ("149cd8f0-00e1-43a4-840b-6a54b4f857f6", "c9c29dc9-6fbb-4564-91e0-d2e18436fdf5"): {
+        "athena_targets": ["peninsula_incident"],
+        "tables": ["incident_combine", "incident_history", "incident_analytics"]
+    },
+    # The Peninsula Tokyo
+    ("149cd8f0-00e1-43a4-840b-6a54b4f857f6", "1ef8175a-6d1d-418e-8a51-31848b147b53"): {
+        "athena_targets": ["peninsula_incident"],
+        "tables": ["incident_combine", "incident_history", "incident_analytics"]
+    },
+    # The Peninsula Bangkok
+    ("149cd8f0-00e1-43a4-840b-6a54b4f857f6", "c0abc579-6ef4-47a3-8290-16cf26964aec"): {
+        "athena_targets": ["peninsula_incident"],
+        "tables": ["incident_combine", "incident_history", "incident_analytics"]
+    },
+    
+    # ============================================================================
+    # DEMO ACCOUNT
+    # ============================================================================
+    ("449b762c-a17c-425c-958b-bea436d531f6", "44cfe549-4eef-4ab8-890a-7ed2df45ea8f"): {
+        "athena_targets": ["peninsula_incident"],
+        "tables": ["incident_combine"]
+    },
+    
+    # ============================================================================
+    # LEGACY MAPPINGS (keep for backwards compatibility)
+    # ============================================================================
     # All 1s UUID - Peninsula access only
     ("11111111-1111-1111-1111-111111111111", "11111111-1111-1111-1111-111111111111"): {
         "athena_targets": ["peninsula_incident"],
@@ -28,22 +65,4 @@ PERMISSIONS_MAPPING: Dict[tuple, Dict[str, any]] = {
         "athena_targets": ["londoner_granded"],
         "tables": ["ldco_testing"]
     },
-    
-    # Another Peninsula property
-    ("acc-345e6789-e89b-12d3-a456-426614174002", "prop-765f4321-e21a-45d6-b789-123456789ghi"): {
-        "athena_targets": ["peninsula_incident"],
-        "tables": ["incident_combine"]
-    },
-    
-    # Another Londoner property
-    ("acc-456e7890-e89b-12d3-a456-426614174003", "prop-654f3210-e21a-45d6-b789-123456789jkl"): {
-        "athena_targets": ["londoner_granded"],
-        "tables": ["ldco_testing"]
-    },
-    
-    # Multi-database access example (user with access to both)
-    ("acc-567e8901-e89b-12d3-a456-426614174004", "prop-543f2109-e21a-45d6-b789-123456789mno"): {
-        "athena_targets": ["peninsula_incident", "londoner_granded"],
-        "tables": ["incident_combine", "ldco_testing"]
-    }
 }

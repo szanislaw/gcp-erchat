@@ -4,21 +4,35 @@ Production-ready FastAPI service that converts natural language questions into A
 
 ## 🚀 Quick Start
 
+### Option 1: Automated Startup (Recommended)
+
+```bash
+# Start complete application (API + UI)
+./start.sh
+
+# Stop all services
+./stop.sh
+```
+
+### Option 2: Manual Startup
+
 ```bash
 # Start API server
-uvicorn app.main:app --host 0.0.0.0 --port 8080
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-# Start Streamlit UI (optional)
+# Start Streamlit UI (in another terminal)
 streamlit run streamlit_app.py --server.port 8501
 ```
 
-API will be available at: `http://localhost:8080`
+**Services:**
+- API: `http://localhost:8000`
+- Streamlit UI: `http://localhost:8501`
 
 ## 📡 API Reference
 
 ### Base URL
 ```
-http://localhost:8080
+http://localhost:8000
 ```
 
 ### Endpoints
@@ -40,8 +54,34 @@ Converts natural language to SQL without executing.
   },
   "sql": {
     "dialect": "athena"
+  },
+  "execution": {
+    "dry_run": true
+  },
+  "model": {},
+  "trace": {
+    "source": "api"
   }
 }
+```
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:8000/nlq/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "How many high severity incidents in the last 7 days?",
+    "context": {
+      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
+      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
+      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
+      "language": "en"
+    },
+    "sql": {"dialect": "athena"},
+    "execution": {"dry_run": true},
+    "model": {},
+    "trace": {"source": "api"}
+  }'
 ```
 
 **Response (200 OK):**
@@ -69,6 +109,10 @@ Generates SQL and executes it on Athena.
     "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
     "language": "en"
   },
+  "model": {},
+  "trace": {
+    "source": "api"
+  },
   "sql": {
     "dialect": "athena"
   },
@@ -77,6 +121,25 @@ Generates SQL and executes it on Athena.
     "max_rows": 100
   }
 }
+```
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:8000/nlq/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Show recent high priority incidents",
+    "context": {
+      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
+      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
+      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
+      "language": "en"
+    },
+    "sql": {"dialect": "athena"},
+    "execution": {"dry_run": false, "max_rows": 100},
+    "model": {},
+    "trace": {"source": "api"}
+  }'
 ```
 
 **Response (200 OK):**
@@ -246,7 +309,7 @@ Main incident tracking table.
 ### Basic Queries
 ```bash
 # Count incidents
-curl -X POST http://localhost:8080/nlq/execute \
+curl -X POST http://localhost:8000/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
     "text": "How many incidents are there?",
@@ -256,14 +319,16 @@ curl -X POST http://localhost:8080/nlq/execute \
       "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
     },
     "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false}
+    "execution": {"dry_run": false},
+    "model": {},
+    "trace": {"source": "api"}
   }'
 ```
 
 ### Time-based Queries
 ```bash
 # Recent incidents
-curl -X POST http://localhost:8080/nlq/execute \
+curl -X POST http://localhost:8000/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Show incidents from last 7 days",
@@ -273,14 +338,16 @@ curl -X POST http://localhost:8080/nlq/execute \
       "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
     },
     "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false, "max_rows": 50}
+    "execution": {"dry_run": false},
+    "model": {},
+    "trace": {"source": "api"}
   }'
 ```
 
 ### Filtering Queries
 ```bash
 # High severity incidents
-curl -X POST http://localhost:8080/nlq/execute \
+curl -X POST http://localhost:8000/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Show high severity pending incidents",
@@ -290,7 +357,9 @@ curl -X POST http://localhost:8080/nlq/execute \
       "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
     },
     "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false}
+    "execution": {"dry_run": false},
+    "model": {},
+    "trace": {"source": "api"}
   }'
 ```
 
@@ -385,7 +454,7 @@ python -m pytest test/
 python test/stress_test.py
 
 # Health check
-curl http://localhost:8080/health
+curl http://localhost:8000/health
 ```
 
 ## 📝 Adding New Users
@@ -405,7 +474,7 @@ sudo systemctl restart nlq-api
 
 3. **Test access:**
 ```bash
-curl -X POST http://localhost:8080/nlq/execute \
+curl -X POST http://localhost:8000/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
     "text": "test query",
@@ -415,7 +484,9 @@ curl -X POST http://localhost:8080/nlq/execute \
       "user_uuid": "new-user-uuid"
     },
     "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false}
+    "execution": {"dry_run": false},
+    "model": {},
+    "trace": {"source": "api"}
   }'
 ```
 

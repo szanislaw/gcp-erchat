@@ -66,6 +66,52 @@ def load_model():
         logger.info(f"[INFO] Model size: ~3B parameters, optimized for text-to-SQL tasks")
 
 
+def fix_date_comparisons(sql: str) -> str:
+    """
+    Fix common date comparison issues for Athena.
+    
+    snapshotdate is stored as VARCHAR (string) like '2025-01-23',
+    so direct comparisons with date functions fail.
+    
+    This fixes patterns like:
+    - snapshotdate >= date_add(...) → date_parse(snapshotdate, '%Y-%m-%d') >= date_add(...)
+    - snapshotdate <= current_date → date_parse(snapshotdate, '%Y-%m-%d') <= current_date
+    - snapshotdate BETWEEN ... → date_parse(snapshotdate, '%Y-%m-%d') BETWEEN ...
+    """
+    if not sql:
+        return sql
+    
+    # Pattern: snapshotdate (operator) date_function
+    # Matches: snapshotdate >= date_add(...), snapshotdate <= current_date, etc.
+    # But NOT: date_parse(snapshotdate, ...) which is already fixed
+    date_comparison_pattern = re.compile(
+        r'\bsnapshotdate\s*([><=!]+|BETWEEN)\s*',
+        re.IGNORECASE
+    )
+    
+    # Check if snapshotdate is already wrapped with date_parse
+    already_wrapped = re.compile(
+        r'date_parse\s*\(\s*snapshotdate',
+        re.IGNORECASE
+    )
+    
+    # If already properly wrapped, return as-is
+    if already_wrapped.search(sql):
+        return sql
+    
+    # Replace bare snapshotdate comparisons with date_parse wrapped version
+    def replace_snapshotdate(match):
+        operator = match.group(1)
+        return f"date_parse(snapshotdate, '%Y-%m-%d') {operator} "
+    
+    fixed_sql = date_comparison_pattern.sub(replace_snapshotdate, sql)
+    
+    if fixed_sql != sql:
+        logger.debug(f"Fixed date comparison: {sql[:100]}... → {fixed_sql[:100]}...")
+    
+    return fixed_sql
+
+
 def extract_sql(text: str) -> str:
     """Extract and clean SQL from model output."""
     if not text:
@@ -79,6 +125,9 @@ def extract_sql(text: str) -> str:
 
     sql = match.group(1).strip()
     sql = re.sub(r"\s+", " ", sql)
+    
+    # Fix date comparisons for snapshotdate (VARCHAR column)
+    sql = fix_date_comparisons(sql)
 
     # Only add LIMIT if missing, and cap at 100 for safety
     if " limit " not in sql.lower():

@@ -211,7 +211,7 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             from app.permissions import validate_tables_in_sql, validate_user_table_access
             try:
                 tables_in_sql = validate_tables_in_sql(sql, allowed_tables)
-                validate_user_table_access(req.context.user_uuid, tables_in_sql)
+                validate_user_table_access(req.context.user_uuid, req.context.property_uuid, tables_in_sql)
                 logger.info(f"User {req.context.user_uuid} validated for tables: {tables_in_sql}")
             except Exception as perm_error:
                 raise HTTPException(
