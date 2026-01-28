@@ -41,6 +41,125 @@ streamlit run streamlit_app.py --server.port 8501
 - API: `http://localhost:8000`
 - Streamlit UI: `http://localhost:8501`
 
+## 🌐 Remote Server Access
+
+If the application is hosted on a remote server (e.g., public IP: `128.106.57.220`), clients can access the API endpoint as follows:
+
+### API Endpoint URL
+```
+http://128.106.57.220:8000
+```
+
+### Sending Queries from a Client
+
+**Using cURL:**
+```bash
+curl -X POST http://128.106.57.220:8000/nlq/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "How many high severity incidents in the last 7 days?",
+    "context": {
+      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
+      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
+      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
+      "language": "en"
+    },
+    "sql": {"dialect": "athena"},
+    "execution": {"dry_run": false, "max_rows": 100},
+    "model": {},
+    "trace": {"source": "api"}
+  }'
+```
+
+**Using Python:**
+```python
+import requests
+import json
+
+# API endpoint
+url = "http://128.106.57.220:8000/nlq/execute"
+
+# Request payload
+payload = {
+    "text": "How many high severity incidents in the last 7 days?",
+    "context": {
+        "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
+        "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
+        "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
+        "language": "en"
+    },
+    "sql": {"dialect": "athena"},
+    "execution": {"dry_run": False, "max_rows": 100},
+    "model": {},
+    "trace": {"source": "api"}
+}
+
+# Send request
+response = requests.post(url, json=payload)
+
+# Process response
+if response.status_code == 200:
+    result = response.json()
+    print("SQL Query:", result['sql']['query'])
+    if result['execution']['executed']:
+        print("Rows returned:", result['execution']['row_count'])
+        print("Data:", json.dumps(result['execution']['data'], indent=2))
+else:
+    print(f"Error: {response.status_code}")
+    print(response.text)
+```
+
+**Using JavaScript/Node.js:**
+```javascript
+const axios = require('axios');
+
+const url = 'http://128.106.57.220:8000/nlq/execute';
+
+const payload = {
+  text: 'How many high severity incidents in the last 7 days?',
+  context: {
+    account_uuid: '149cd8f0-00e1-43a4-840b-6a54b4f857f6',
+    property_uuid: '8afe7e5e-22e5-4318-b5c7-f967fc44e81f',
+    user_uuid: 'c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40',
+    language: 'en'
+  },
+  sql: { dialect: 'athena' },
+  execution: { dry_run: false, max_rows: 100 },
+  model: {},
+  trace: { source: 'api' }
+};
+
+axios.post(url, payload)
+  .then(response => {
+    console.log('SQL Query:', response.data.sql.query);
+    if (response.data.execution.executed) {
+      console.log('Rows returned:', response.data.execution.row_count);
+      console.log('Data:', JSON.stringify(response.data.execution.data, null, 2));
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error.response ? error.response.data : error.message);
+  });
+```
+
+### Accessing the Streamlit UI
+```
+http://128.106.57.220:8501
+```
+
+### Server Configuration Notes
+
+**Important:** Ensure the server firewall allows inbound connections on ports:
+- **8000** - FastAPI backend
+- **8501** - Streamlit UI
+
+**For production deployments:**
+- Use HTTPS with SSL/TLS certificates (consider using nginx as reverse proxy)
+- Implement authentication/authorization middleware
+- Configure CORS policies in [app/main.py](app/main.py) (currently allows all origins)
+- Set up rate limiting at the network/proxy level
+- Use environment variables for sensitive configuration
+
 ## 📡 API Reference
 
 ### Base URL
