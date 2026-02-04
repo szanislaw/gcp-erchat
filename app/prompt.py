@@ -1,6 +1,5 @@
 from app.schema_loader import load_schema, compress_schema
 from app.query_normalizer import preprocess_query
-from app.user_table_permissions import get_property_name
 from typing import Optional
 
 
@@ -8,10 +7,8 @@ def build_prompt(text, context, sql, athena_target: str, property_uuid: Optional
     schema = load_schema(athena_target)
     schema_text = compress_schema(schema)
     
-    # Get property name if user_uuid is provided (for access control)
-    property_name = None
-    if user_uuid and property_uuid:
-        property_name = get_property_name(property_uuid)
+    # Property name from context (authentication handled externally)
+    property_name = getattr(context, 'location_name', None)
     
     # Preprocess the query to normalize entity names
     normalized_text, matched_entities, entity_hints = preprocess_query(text)

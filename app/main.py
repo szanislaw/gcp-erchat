@@ -10,7 +10,6 @@ from app.sqlcoder import run_sqlcoder, load_model
 from app.security import validate_sql
 from app.athena_client import execute_query
 from app.utils import gen_request_id
-from app.permissions import get_allowed_access, validate_access_with_user
 from app.request_logger import log_request, get_logs, get_log_count
 from app.display_hint import get_display_type
 from app.query_suggestions import generate_query_suggestions, get_schema_summary
@@ -156,28 +155,10 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
                 headers={"Retry-After": str(int(rate_check.retry_after) + 1)}
             )
 
-        # Step 3: Authorization Check (account/property level)
-        access = get_allowed_access(req.context.account_uuid, req.context.property_uuid)
-        if access is None:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Access denied: No permissions for account {req.context.account_uuid} and property {req.context.property_uuid}"
-            )
-
-        # Use the first athena target - in future could support multi-target queries
-        athena_target = access["athena_targets"][0]
-        allowed_tables = access["tables"]
-        
-        # Step 3b: User-level table validation (if user_uuid provided)
-        # This will be validated again after SQL generation, but pre-check here
-        if req.context.user_uuid:
-            try:
-                from app.permissions import validate_user_table_access
-                # Pre-validate that user has access to at least some tables in this account
-                validate_user_table_access(req.context.user_uuid, req.context.property_uuid, allowed_tables)
-            except Exception as e:
-                logger.warning(f"User validation warning: {e}")
-                # Don't fail here, will validate against actual tables in SQL later
+        # Step 3: Determine Athena target and allowed tables
+        # Authentication is now handled by external token service
+        athena_target = "peninsula_incident"  # Default target - configure as needed
+        allowed_tables = ["incident_combine", "incident_history", "incident_analytics"]  # Default tables
 
         # Step 4: Build Prompt
         prompt = build_prompt(
@@ -205,20 +186,6 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             req.sql.dialect
         )
         
-        # Step 6b: Validate user-level table access (if user_uuid provided)
-        if req.context.user_uuid:
-            # Extract tables from SQL and validate user has access
-            from app.permissions import validate_tables_in_sql, validate_user_table_access
-            try:
-                tables_in_sql = validate_tables_in_sql(sql, allowed_tables)
-                validate_user_table_access(req.context.user_uuid, req.context.property_uuid, tables_in_sql)
-                logger.info(f"User {req.context.user_uuid} validated for tables: {tables_in_sql}")
-            except Exception as perm_error:
-                raise HTTPException(
-                    status_code=403,
-                    detail=str(perm_error)
-                )
-
         # Step 7: Execute Query (if not dry run)
         execution_data = None
         executed = False

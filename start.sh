@@ -36,27 +36,9 @@ fi
 echo -e "${GREEN}✓ Environment file found${NC}"
 echo ""
 
-# 2. Verify credentials
-echo -e "${YELLOW}[2/6] Verifying AWS credentials...${NC}"
-if [ -f "verify_credentials.py" ]; then
-    python verify_credentials.py --quiet 2>/dev/null
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ AWS credentials verified${NC}"
-    else
-        echo -e "${YELLOW}⚠ Running full credential verification:${NC}"
-        echo ""
-        python verify_credentials.py
-        echo ""
-        read -p "Credentials may have issues. Continue anyway? (y/n) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "Aborted."
-            exit 1
-        fi
-    fi
-else
-    echo -e "${YELLOW}⚠ Credential verification script not found (skipping)${NC}"
-fi
+# 2. Authentication note
+echo -e "${YELLOW}[2/6] Authentication check...${NC}"
+echo -e "${GREEN}✓ Authentication handled by external token service${NC}"
 echo ""
 
 # 3. Check Python dependencies

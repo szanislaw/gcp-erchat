@@ -3,9 +3,9 @@ from typing import List, Optional, Literal
 
 
 class Context(BaseModel):
-    account_uuid: str  # REQUIRED for access control
-    property_uuid: str  # REQUIRED for access control
-    user_uuid: Optional[str] = None  # OPTIONAL - for user-level table access control
+    account_uuid: Optional[str] = None  # Optional - authentication handled externally
+    property_uuid: Optional[str] = None  # Optional - authentication handled externally
+    user_uuid: Optional[str] = None  # Optional - authentication handled externally
     user_role: Optional[str] = None
     location_name: Optional[str] = None
     language: Literal["en", "zh", "ms", "ta"] = "en"
