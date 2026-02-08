@@ -123,6 +123,38 @@ def fix_date_comparisons(sql: str) -> str:
     return fixed_sql
 
 
+def fix_table_names(sql: str, allowed_tables: list = None) -> str:
+    """
+    Fix hallucinated table names by replacing variants with the correct table name.
+    
+    The model sometimes invents table names like:
+    - incident_combine_2025 → incident_combine
+    - incident_combine_v2 → incident_combine
+    - incident_combine_history → incident_combine
+    
+    This uses the allowed_tables list to find the closest base table match.
+    """
+    if not sql or not allowed_tables:
+        return sql
+    
+    # For each allowed table, find and replace hallucinated variants
+    # Pattern: allowed_table_name followed by extra suffixes (_YYYY, _vN, _something)
+    for table in allowed_tables:
+        # Match the table name with any suffix like _2025, _v2, _history, etc.
+        pattern = re.compile(
+            r'\b' + re.escape(table) + r'_[a-zA-Z0-9_]+\b',
+            re.IGNORECASE
+        )
+        matches = pattern.findall(sql)
+        for match in matches:
+            # Only replace if the hallucinated name is NOT itself an allowed table
+            if match.lower() not in [t.lower() for t in allowed_tables]:
+                logger.info(f"Fixed hallucinated table name: {match} → {table}")
+                sql = sql.replace(match, table)
+    
+    return sql
+
+
 def extract_sql(text: str) -> str:
     """Extract and clean SQL from model output."""
     if not text:

@@ -56,11 +56,14 @@ STRICT RULES:
 - Do NOT include comments
 - Do NOT include markdown code fences like ```sql
 - Use PrestoSQL syntax ONLY
+- Use ONLY the tables listed below - do NOT invent or guess table names
+- Do NOT append suffixes like _2025, _v2, _history to table names
 - Use ONLY the columns listed below
 - Do NOT invent columns
 - DO NOT perform cross-database joins
 - Prefer partition columns when filtering
 - ALWAYS include a LIMIT clause (respect the requested number, max 100)
+- For year-based filtering, use: WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = YYYY
 - Use LOWERCASE for categorical values (severity_name, status_name, etc.)
 - Use EXACT CASE for property names and location names (e.g., 'The Peninsula Manila')
 - Use LOWER() function for case-insensitive matching when needed
@@ -101,6 +104,8 @@ Real examples (exact syntax):
 ✓ WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -14, current_date)
 ✓ WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('month', -1, current_date)
 ✓ WHERE date_parse(snapshotdate, '%Y-%m-%d') = current_date
+✓ WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = 2025
+✓ WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = 2025 AND month(date_parse(snapshotdate, '%Y-%m-%d')) = 6
 
 Wrong examples (cause errors):
 ✗ WHERE snapshotdate >= current_date (STRING comparison fails!)

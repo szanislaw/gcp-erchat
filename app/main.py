@@ -185,6 +185,10 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             req.model.max_tokens
         )
 
+        # Step 5.5: Fix hallucinated table names before validation
+        from app.sqlcoder import fix_table_names
+        result["query"] = fix_table_names(result["query"], allowed_tables)
+
         # Step 6: Validate Generated SQL
         sql = validate_sql(
             result["query"],
