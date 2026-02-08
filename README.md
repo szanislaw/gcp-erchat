@@ -5,7 +5,7 @@ Production-ready FastAPI service that converts natural language questions into A
 ## ✨ Key Features
 
 - 🤖 **AI-Powered SQL Generation**: Uses Qwen-2.5-3b-Text_to_SQL model for accurate NLQ to SQL conversion
-- 🛡️ **Three-Tier Access Control**: Account → Property → User level permissions
+- 🛡️ **Property-Based Access Control**: Pre-authorized property UUIDs drive data access
 - 🔧 **Automatic SQL Fixing**: Post-processes generated SQL to fix date comparisons and type mismatches
 - 📊 **Smart Display Hints**: Automatically recommends chart types (line, bar, pie, metric, table)
 - 🚦 **Rate Limiting**: Token bucket algorithm with request queuing (2 req/s, burst 10)
@@ -59,15 +59,15 @@ curl -X POST http://128.106.57.220:8000/nlq/execute \
   -d '{
     "text": "How many high severity incidents in the last 7 days?",
     "context": {
-      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
-      "language": "en"
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false, "max_rows": 100},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -83,15 +83,15 @@ url = "http://128.106.57.220:8000/nlq/execute"
 payload = {
     "text": "How many high severity incidents in the last 7 days?",
     "context": {
-        "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-        "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-        "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
-        "language": "en"
+        "language": "en",
+        "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+        "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+        "user_role": None
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": False, "max_rows": 100},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": False, "max_rows": 100, "athena_target": None},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
 }
 
 # Send request
@@ -118,15 +118,15 @@ const url = 'http://128.106.57.220:8000/nlq/execute';
 const payload = {
   text: 'How many high severity incidents in the last 7 days?',
   context: {
-    account_uuid: '149cd8f0-00e1-43a4-840b-6a54b4f857f6',
-    property_uuid: '8afe7e5e-22e5-4318-b5c7-f967fc44e81f',
-    user_uuid: 'c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40',
-    language: 'en'
+    language: 'en',
+    property_uuid: 'c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926',
+    account_uuid: 'fccb8d60-de9c-4bf8-abd8-fae523c732c6',
+    user_role: null
   },
-  sql: { dialect: 'athena' },
-  execution: { dry_run: false, max_rows: 100 },
-  model: {},
-  trace: { source: 'api' }
+  sql: { dialect: 'athena', tables: [] },
+  execution: { dry_run: false, max_rows: 100, athena_target: null },
+  model: { max_tokens: 512 },
+  trace: { source: 'socket' }
 };
 
 axios.post(url, payload)
@@ -169,50 +169,56 @@ http://localhost:8000
 
 ### Endpoints
 
-#### 1. Generate SQL Query
-**POST** `/nlq/generate`
+#### 1. Generate SQL Query (Dry Run)
+**POST** `/nlq/execute` with `"dry_run": true`
 
-Converts natural language to SQL without executing.
+Converts natural language to SQL **without executing** on Athena.
 
 **Request Body:**
 ```json
 {
   "text": "How many high severity incidents in the last 7 days?",
   "context": {
-    "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-    "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-    "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
-    "language": "en"
+    "language": "en",
+    "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+    "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+    "user_role": null
   },
   "sql": {
-    "dialect": "athena"
+    "dialect": "athena",
+    "tables": []
   },
   "execution": {
-    "dry_run": true
+    "dry_run": true,
+    "max_rows": 100,
+    "athena_target": null
   },
-  "model": {},
+  "model": {
+    "max_tokens": 512
+  },
   "trace": {
-    "source": "api"
+    "source": "socket",
+    "request_id": "ea6a29ca-ce23-4235-a3dc-5b9850f6bf16"
   }
 }
 ```
 
 **cURL Example:**
 ```bash
-curl -X POST http://localhost:8000/nlq/generate \
+curl -X POST http://localhost:8000/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
     "text": "How many high severity incidents in the last 7 days?",
     "context": {
-      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
-      "language": "en"
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": true},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": true, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -221,7 +227,7 @@ curl -X POST http://localhost:8000/nlq/generate \
 {
   "success": true,
   "sql": {
-    "query": "SELECT COUNT(*) as count FROM incident_combine WHERE severity_name = 'high' AND date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -7, current_date) LIMIT 100",
+    "query": "SELECT COUNT(*) as count FROM incident_combine WHERE severity_name = 'high' AND date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -7, current_date) AND property_uuid IN ('c7254cc9-9145-4602-b44b-0c1cff335f83', '2b618b46-6b80-481b-b1e3-5aec1647b926') LIMIT 100",
     "confidence": 0.9
   },
   "execution": {
@@ -237,14 +243,12 @@ curl -X POST http://localhost:8000/nlq/generate \
     "assumptions": []
   },
   "trace": {
-    "request_id": "req-abc123def456",
+    "request_id": "ea6a29ca-ce23-4235-a3dc-5b9850f6bf16",
     "model_latency_ms": 2847,
     "total_latency_ms": 2963,
     "athena_target": "peninsula_incident",
     "allowed_tables": [
-      "incident_combine",
-      "incident_history",
-      "incident_analytics"
+      "incident_combine"
     ],
     "input_warnings": []
   }
@@ -261,21 +265,26 @@ Generates SQL and executes it on Athena.
 {
   "text": "Show recent high priority incidents",
   "context": {
-    "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-    "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-    "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
-    "language": "en"
-  },
-  "model": {},
-  "trace": {
-    "source": "api"
+    "language": "en",
+    "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+    "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+    "user_role": null
   },
   "sql": {
-    "dialect": "athena"
+    "dialect": "athena",
+    "tables": []
   },
   "execution": {
     "dry_run": false,
-    "max_rows": 100
+    "max_rows": 100,
+    "athena_target": null
+  },
+  "model": {
+    "max_tokens": 512
+  },
+  "trace": {
+    "source": "socket",
+    "request_id": "ea6a29ca-ce23-4235-a3dc-5b9850f6bf16"
   }
 }
 ```
@@ -287,15 +296,15 @@ curl -X POST http://localhost:8000/nlq/execute \
   -d '{
     "text": "Show recent high priority incidents",
     "context": {
-      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
-      "language": "en"
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false, "max_rows": 100},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -304,7 +313,7 @@ curl -X POST http://localhost:8000/nlq/execute \
 {
   "success": true,
   "sql": {
-    "query": "SELECT incident_uuid, property_name, category_name, severity_name, status_name, created_date FROM incident_combine WHERE severity_name = 'high' AND property_name = 'The Peninsula Hong Kong' ORDER BY created_date DESC LIMIT 10",
+    "query": "SELECT incident_uuid, property_name, category_name, severity_name, status_name, created_date FROM incident_combine WHERE severity_name = 'high' AND property_uuid IN ('c7254cc9-9145-4602-b44b-0c1cff335f83', '2b618b46-6b80-481b-b1e3-5aec1647b926') ORDER BY created_date DESC LIMIT 10",
     "confidence": 0.9
   },
   "execution": {
@@ -356,14 +365,12 @@ curl -X POST http://localhost:8000/nlq/execute \
     "assumptions": []
   },
   "trace": {
-    "request_id": "req-xyz789abc012",
+    "request_id": "ea6a29ca-ce23-4235-a3dc-5b9850f6bf16",
     "model_latency_ms": 3024,
     "total_latency_ms": 4856,
     "athena_target": "peninsula_incident",
     "allowed_tables": [
-      "incident_combine",
-      "incident_history",
-      "incident_analytics"
+      "incident_combine"
     ],
     "input_warnings": []
   }
@@ -396,110 +403,86 @@ curl -X POST http://localhost:8000/nlq/execute \
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `text` | string | Yes | Natural language query |
-| `context.account_uuid` | string | Yes | Account UUID for access control |
-| `context.property_uuid` | string | Yes | Property UUID for access control |
-| `context.user_uuid` | string | **Recommended** | User UUID for granular property-level permissions |
 | `context.language` | string | No | Query language: "en", "zh", "ms", "ta" (default: "en") |
+| `context.property_uuid` | string | Yes | Comma-separated property UUIDs (pre-authorized by upstream service) |
+| `context.account_uuid` | string | Yes | Account UUID |
+| `context.user_role` | string | No | User role (nullable) |
 | `sql.dialect` | string | Yes | Must be "athena" |
+| `sql.tables` | array | No | Allowed tables override (default: resolved from config) |
 | `execution.dry_run` | boolean | No | If true, returns SQL without executing (default: true) |
-| `execution.max_rows` | integer | No | Max rows to return (default: 100, max: 1000) |
+| `execution.max_rows` | integer | No | Max rows to return (default: 100) |
+| `execution.athena_target` | string | No | Athena target override (default: resolved from config) |
+| `model.max_tokens` | integer | No | Max tokens for model generation (default: 256) |
+| `trace.source` | string | No | Request source identifier (default: "fcs1-ui") |
+| `trace.request_id` | string | No | Client-provided request ID (auto-generated if omitted) |
 
 ### Error Responses
 
-**403 Forbidden - Access Denied**
+**400 Bad Request - Invalid Input**
 ```json
 {
-  "detail": {
-    "error": "User c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40 does not have access to property c9c29dc9-6fbb-4564-91e0-d2e18436fdf5",
-    "error_code": "USER_PROPERTY_NOT_ALLOWED",
-    "suggestions": [
-      "Your allowed properties: ['The Peninsula Hong Kong']",
-      "Contact administrator to request access to this property"
-    ]
-  }
+  "detail": "Invalid input: Query text is required"
 }
 ```
 
-**400 Bad Request - Invalid Query**
+**400 Bad Request - Unauthorized Table**
 ```json
 {
-  "detail": "Invalid SQL: Table 'unauthorized_table' not allowed"
+  "detail": "Unauthorized table(s): unauthorized_table. Allowed tables: incident_combine"
+}
+```
+
+**429 Too Many Requests - Rate Limited**
+```json
+{
+  "detail": "Rate limit exceeded. Retry after 0.5 seconds"
 }
 ```
 
 ## 🔐 Access Control System
 
-The API implements **three-tier access control**:
+Access control is **handled by the upstream service** before requests reach iWiz. The `property_uuid` field contains a **comma-separated list of pre-authorized property UUIDs** that the user is allowed to access.
 
-### Tier 1: Account/Property Level
-Maps `(account_uuid, property_uuid)` pairs to allowed databases and tables.
+### How It Works
 
-**Configuration:** `app/permissions_config.py`
-```python
-PERMISSIONS_MAPPING = {
-    ("149cd8f0-00e1-43a4-840b-6a54b4f857f6", "8afe7e5e-22e5-4318-b5c7-f967fc44e81f"): {
-        "athena_targets": ["peninsula_incident"],
-        "tables": ["incident_combine", "incident_history", "incident_analytics"]
-    }
-}
-```
+1. **Upstream service authenticates** the user and determines which properties they can access
+2. **Request arrives at iWiz** with `property_uuid` containing one or more authorized UUIDs
+3. **iWiz parses** the comma-separated UUIDs into a list
+4. **SQL generation** automatically includes a `WHERE property_uuid IN (...)` clause scoped to those UUIDs
+5. **SQL validation** ensures generated queries only reference allowed tables
 
-### Tier 2: Property Level
-Maps properties to specific databases and tables.
-
-**Properties:**
-- **The Peninsula Hong Kong** (`8afe7e5e-22e5-4318-b5c7-f967fc44e81f`)
-- **The Peninsula Manila** (`c9c29dc9-6fbb-4564-91e0-d2e18436fdf5`)
-- **The Peninsula Tokyo** (`1ef8175a-6d1d-418e-8a51-31848b147b53`)
-- **The Peninsula Bangkok** (`c0abc579-6ef4-47a3-8290-16cf26964aec`)
-
-### Tier 3: User Level (Property-Based Access)
-Maps individual users to specific properties they can access. **When user_uuid is provided, queries are restricted to that property's data only.**
-
-**Configuration:** `app/user_table_permissions.py`
-```python
-USER_TABLE_PERMISSIONS = {
-    # Hong Kong user - can ONLY access HK property data
-    "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40": ["8afe7e5e-22e5-4318-b5c7-f967fc44e81f"],
-    
-    # Manila user - can ONLY access Manila property data
-    "f7dabb0e-6692-4881-9df1-f8adedd4d74c": ["c9c29dc9-6fbb-4564-91e0-d2e18436fdf5"]
-}
-```
-
-### How Access Control Works
-
-1. **Request arrives** with `account_uuid`, `property_uuid`, and optionally `user_uuid`
-2. **Tier 1 validation**: Check if account/property pair has access to requested database
-3. **Tier 2 validation**: Verify property exists and maps to correct database
-4. **Tier 3 validation** (if `user_uuid` provided): 
-   - Verify user has access to the specified property
-   - Only allow queries for that property's data
-   - **Property isolation is enforced - user cannot access other properties' data**
-5. **SQL validation**: Extract table names from generated SQL and verify against allowed tables
-
-### Example Access Scenarios
-
-**✅ Allowed:**
+### Single Property Access
 ```json
 {
-  "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-  "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-  "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
+  "context": {
+    "language": "en",
+    "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83",
+    "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+    "user_role": null
+  }
 }
-// Hong Kong user accessing Hong Kong property ✓
 ```
+Generated SQL: `... WHERE property_uuid IN ('c7254cc9-9145-4602-b44b-0c1cff335f83') ...`
 
-**❌ Denied:**
+### Multi-Property Access
 ```json
 {
-  "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-  "property_uuid": "c9c29dc9-6fbb-4564-91e0-d2e18436fdf5",
-  "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
+  "context": {
+    "language": "en",
+    "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+    "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+    "user_role": null
+  }
 }
-// Hong Kong user trying to access Manila property ✗
-// Error: USER_PROPERTY_NOT_ALLOWED
 ```
+Generated SQL: `... WHERE property_uuid IN ('c7254cc9-9145-4602-b44b-0c1cff335f83', '2b618b46-6b80-481b-b1e3-5aec1647b926') ...`
+
+### Key Points
+
+- **iWiz does not perform authorization** — it trusts the upstream service
+- **All property UUIDs** in the comma-separated list are treated as authorized
+- **Data filtering** is enforced at the SQL level via `WHERE property_uuid IN (...)`
+- **Table access** is controlled by `sql.tables` (from payload) or `ATHENA_TARGETS` config
 
 ## 🗄️ Database Schema
 
@@ -534,14 +517,15 @@ curl -X POST http://localhost:8000/nlq/execute \
   -d '{
     "text": "How many incidents are there?",
     "context": {
-      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -553,14 +537,15 @@ curl -X POST http://localhost:8000/nlq/execute \
   -d '{
     "text": "Show incidents from last 7 days",
     "context": {
-      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -572,14 +557,15 @@ curl -X POST http://localhost:8000/nlq/execute \
   -d '{
     "text": "Show high severity pending incidents",
     "context": {
-      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -587,10 +573,10 @@ curl -X POST http://localhost:8000/nlq/execute \
 
 | File | Purpose |
 |------|---------|
-| `app/permissions_config.py` | Account/property access mappings |
-| `app/user_table_permissions.py` | User-to-property access mappings |
 | `app/athena_config.py` | Athena database configurations |
 | `app/models.py` | Pydantic request/response models |
+| `app/prompt.py` | LLM prompt construction with property UUID filtering |
+| `app/security.py` | SQL validation and table allowlisting |
 
 ## 📊 Monitoring & Logging
 
@@ -599,9 +585,8 @@ All API requests are logged to `logs/api_requests.json`:
 {
   "timestamp": "2026-01-23T10:30:00Z",
   "endpoint": "/nlq/execute",
-  "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-  "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-  "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40",
+  "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+  "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
   "query_text": "Show recent incidents",
   "generated_sql": "SELECT ...",
   "status": "success",
@@ -628,10 +613,8 @@ All API requests are logged to `logs/api_requests.json`:
                              │
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              Access Control (permissions.py)                     │
-│  Tier 1: Account/Property → Database mapping                    │
-│  Tier 2: Property → Tables mapping                              │
-│  Tier 3: User → Property access (optional)                      │
+│              Access Control (upstream-authorized)              │
+│  Property UUIDs → WHERE property_uuid IN (...) filter          │
 └────────────────────────────┬────────────────────────────────────┘
                              │
                              ▼
@@ -705,7 +688,7 @@ All API requests are logged to `logs/api_requests.json`:
 |--------|---------|-------------|
 | `main.py` | FastAPI app entry point | Rate limiting, CORS, async lifespan management |
 | `sqlcoder.py` | SQL generation & fixing | Model inference, LRU caching, date comparison fixes |
-| `permissions.py` | Access control enforcement | Three-tier validation, user-property mapping |
+| `permissions.py` | Access control enforcement | Property UUID parsing, SQL filtering |
 | `athena_client.py` | AWS Athena integration | Query execution, result fetching, error handling |
 | `display_hint.py` | Display type recommendation | SQL pattern analysis, row/column heuristics |
 | `input_validator.py` | Input sanitization | XSS detection, SQL injection prevention |
@@ -819,14 +802,15 @@ curl -X POST http://localhost:8000/nlq/execute \
   -d '{
     "text": "How many total incidents?",
     "context": {
-      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -835,7 +819,7 @@ curl -X POST http://localhost:8000/nlq/execute \
 {
   "success": true,
   "sql": {
-    "query": "SELECT COUNT(*) as total FROM incident_combine WHERE property_name = 'The Peninsula Hong Kong' LIMIT 100"
+    "query": "SELECT COUNT(*) as total FROM incident_combine WHERE property_uuid IN ('c7254cc9-9145-4602-b44b-0c1cff335f83', '2b618b46-6b80-481b-b1e3-5aec1647b926') LIMIT 100"
   },
   "execution": {
     "executed": true,
@@ -866,14 +850,15 @@ curl -X POST http://localhost:8000/nlq/execute \
   -d '{
     "text": "Show incident breakdown by severity",
     "context": {
-      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -882,7 +867,7 @@ curl -X POST http://localhost:8000/nlq/execute \
 {
   "success": true,
   "sql": {
-    "query": "SELECT severity_name, COUNT(*) as count FROM incident_combine WHERE property_name = 'The Peninsula Hong Kong' GROUP BY severity_name LIMIT 100"
+    "query": "SELECT severity_name, COUNT(*) as count FROM incident_combine WHERE property_uuid IN ('c7254cc9-9145-4602-b44b-0c1cff335f83', '2b618b46-6b80-481b-b1e3-5aec1647b926') GROUP BY severity_name LIMIT 100"
   },
   "execution": {
     "executed": true,
@@ -917,14 +902,15 @@ curl -X POST http://localhost:8000/nlq/execute \
   -d '{
     "text": "Show incidents by category",
     "context": {
-      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -933,7 +919,7 @@ curl -X POST http://localhost:8000/nlq/execute \
 {
   "success": true,
   "sql": {
-    "query": "SELECT category_name, COUNT(*) as count FROM incident_combine WHERE property_name = 'The Peninsula Hong Kong' GROUP BY category_name ORDER BY count DESC LIMIT 100"
+    "query": "SELECT category_name, COUNT(*) as count FROM incident_combine WHERE property_uuid IN ('c7254cc9-9145-4602-b44b-0c1cff335f83', '2b618b46-6b80-481b-b1e3-5aec1647b926') GROUP BY category_name ORDER BY count DESC LIMIT 100"
   },
   "execution": {
     "executed": true,
@@ -970,14 +956,15 @@ curl -X POST http://localhost:8000/nlq/execute \
   -d '{
     "text": "Show daily incident count for last 30 days",
     "context": {
-      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -986,7 +973,7 @@ curl -X POST http://localhost:8000/nlq/execute \
 {
   "success": true,
   "sql": {
-    "query": "SELECT snapshotdate, COUNT(*) as daily_count FROM incident_combine WHERE property_name = 'The Peninsula Hong Kong' AND date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -30, current_date) GROUP BY snapshotdate ORDER BY snapshotdate LIMIT 100"
+    "query": "SELECT snapshotdate, COUNT(*) as daily_count FROM incident_combine WHERE property_uuid IN ('c7254cc9-9145-4602-b44b-0c1cff335f83', '2b618b46-6b80-481b-b1e3-5aec1647b926') AND date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -30, current_date) GROUP BY snapshotdate ORDER BY snapshotdate LIMIT 100"
   },
   "execution": {
     "executed": true,
@@ -1028,14 +1015,15 @@ curl -X POST http://localhost:8000/nlq/execute \
   -d '{
     "text": "Show recent pending high severity incidents",
     "context": {
-      "account_uuid": "149cd8f0-00e1-43a4-840b-6a54b4f857f6",
-      "property_uuid": "8afe7e5e-22e5-4318-b5c7-f967fc44e81f",
-      "user_uuid": "c4b943a0-57c5-4fe1-bfb9-6e09d5b60c40"
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -1044,7 +1032,7 @@ curl -X POST http://localhost:8000/nlq/execute \
 {
   "success": true,
   "sql": {
-    "query": "SELECT incident_uuid, category_name, severity_name, status_name, location_name, created_date FROM incident_combine WHERE property_name = 'The Peninsula Hong Kong' AND severity_name = 'high' AND status_name = 'pending' ORDER BY created_date DESC LIMIT 100"
+    "query": "SELECT incident_uuid, category_name, severity_name, status_name, location_name, created_date FROM incident_combine WHERE property_uuid IN ('c7254cc9-9145-4602-b44b-0c1cff335f83', '2b618b46-6b80-481b-b1e3-5aec1647b926') AND severity_name = 'high' AND status_name = 'pending' ORDER BY created_date DESC LIMIT 100"
   },
   "execution": {
     "executed": true,
@@ -1143,13 +1131,11 @@ Generated SQL is validated before execution:
 
 ### Access Control
 
-Three-tier permission system:
+Upstream-authorized property UUID system:
 
-1. **Account/Property Level**: Maps to specific databases
-2. **Property Level**: Maps to specific tables
-3. **User Level** (optional): Maps users to properties they can access
-
-**All unauthorized access attempts are logged.**
+1. **Upstream Service**: Authenticates user and determines allowed properties
+2. **Property UUID Filtering**: `WHERE property_uuid IN (...)` enforced in generated SQL
+3. **Table Allowlist**: Only configured tables permitted
 
 ## 📦 Dependencies
 
@@ -1180,36 +1166,26 @@ python test/stress_test.py
 curl http://localhost:8000/health
 ```
 
-## 📝 Adding New Users
+## 📝 Adding New Properties
 
-1. **Add user to property mapping:**
-```python
-# app/user_table_permissions.py
-USER_TABLE_PERMISSIONS = {
-    "new-user-uuid": ["property-uuid-they-can-access"]
-}
-```
+1. **Upstream service grants access** to the property UUID for the user/account
 
-2. **Restart service:**
-```bash
-sudo systemctl restart nlq-api
-```
-
-3. **Test access:**
+2. **Test access:**
 ```bash
 curl -X POST http://localhost:8000/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
     "text": "test query",
     "context": {
+      "language": "en",
+      "property_uuid": "new-property-uuid-here",
       "account_uuid": "account-uuid",
-      "property_uuid": "property-uuid",
-      "user_uuid": "new-user-uuid"
+      "user_role": null
     },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false},
-    "model": {},
-    "trace": {"source": "api"}
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
   }'
 ```
 
@@ -1260,12 +1236,11 @@ ATHENA_TARGETS = {
 
 ## 🔒 Security Best Practices
 
-- **Always include `user_uuid` for production requests** to enable property-level access control
-- User-level permissions are enforced at the SQL generation level
+- **Access control is handled upstream** — iWiz trusts the property UUIDs in the payload
+- Property UUIDs are enforced at the SQL generation level via `WHERE property_uuid IN (...)`
 - All SQL queries are validated before execution
-- Table access is strictly controlled per property
-- **Cross-property queries are automatically blocked when user_uuid is provided**
-- Users can ONLY access data for properties they are explicitly assigned to
+- Table access is controlled per Athena target configuration
+- **Cross-property queries are scoped** to only the UUIDs provided in `property_uuid`
 - Input validation prevents XSS and SQL injection attacks
 - Rate limiting prevents abuse and resource exhaustion
 - All API requests are logged with full context for audit trails
@@ -1282,15 +1257,9 @@ See `/documentation` folder for:
 
 ### Common Issues
 
-**Problem:** 403 Forbidden - USER_PROPERTY_NOT_ALLOWED
-
-**Solution:** Verify the user_uuid has access to the specified property_uuid in `app/user_table_permissions.py`
-
----
-
 **Problem:** 400 Bad Request - Table not allowed
 
-**Solution:** Check that the property mapping in `app/permissions_config.py` includes the required tables
+**Solution:** Check that the Athena target configuration in `app/athena_config.py` includes the required tables
 
 ---
 

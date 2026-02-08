@@ -157,8 +157,14 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
 
         # Step 3: Determine Athena target and allowed tables
         # Authentication is now handled by external token service
-        athena_target = "peninsula_incident"  # Default target - configure as needed
-        allowed_tables = ["incident_combine", "incident_history", "incident_analytics"]  # Default tables
+        athena_target = req.execution.athena_target or "peninsula_incident"
+        # Use tables from payload if provided, otherwise from ATHENA_TARGETS config
+        if req.sql.tables:
+            allowed_tables = req.sql.tables
+        else:
+            from app.athena_config import ATHENA_TARGETS
+            target_cfg = ATHENA_TARGETS.get(athena_target, {})
+            allowed_tables = target_cfg.get("tables", ["incident_combine"])
 
         # Step 4: Build Prompt
         prompt = build_prompt(

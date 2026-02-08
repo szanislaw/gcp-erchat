@@ -7,6 +7,11 @@ def build_prompt(text, context, sql, athena_target: str, property_uuid: Optional
     schema = load_schema(athena_target)
     schema_text = compress_schema(schema)
     
+    # Parse comma-separated property UUIDs (pre-authorized by upstream service)
+    property_uuids = []
+    if property_uuid:
+        property_uuids = [u.strip() for u in property_uuid.split(',') if u.strip()]
+    
     # Property name from context (authentication handled externally)
     property_name = getattr(context, 'location_name', None)
     
@@ -21,9 +26,19 @@ DETECTED ENTITIES (use these exact values):
 {entity_hints}
 """
 
-    # Build property restriction if property name is provided (from user UUID validation)
+    # Build property restriction based on authorized property UUIDs
     property_restriction = ""
-    if property_name:
+    if property_uuids:
+        uuid_in_list = ", ".join(f"'{u}'" for u in property_uuids)
+        property_restriction = f"""
+⚠️ CRITICAL: USER ACCESS RESTRICTION ⚠️
+- This user can ONLY access data for property_uuid values: {uuid_in_list}
+- You MUST add: WHERE property_uuid IN ({uuid_in_list})
+- If query already has WHERE, use AND: WHERE ... AND property_uuid IN ({uuid_in_list})
+- This is MANDATORY for all queries - no exceptions
+- Do NOT access data from other properties
+"""
+    elif property_name:
         property_restriction = f"""
 ⚠️ CRITICAL: USER ACCESS RESTRICTION ⚠️
 - This user can ONLY access data for: {property_name}
