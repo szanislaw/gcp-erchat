@@ -10,21 +10,28 @@ def _find_property_uuid_column(schema: dict) -> str:
     """
     Detect the property UUID column name from the Glue schema.
     The actual column may be 'property_uuid', 'property', etc.
+    Also checks partition keys.
 
     Priority:
-    1. Exact match: 'property_uuid'
-    2. Contains both 'property' and 'uuid'
+    1. Exact match: 'property_uuid' in columns or partitions
+    2. Contains both 'property' and 'uuid' in columns
     3. Column named 'property' (often contains UUID values)
+    4. Partition key named 'property' (contains UUID values)
 
     Returns the column name or None if not found.
     """
-    # Pass 1: exact match 'property_uuid'
+    # Pass 1: exact match 'property_uuid' in columns
     for table_name, meta in schema.items():
         for col in meta.get("columns", []):
             if col["name"].lower() == "property_uuid":
                 return "property_uuid"
+        
+        # Check partitions too
+        for part in meta.get("partitions", []):
+            if part["name"].lower() == "property_uuid":
+                return "property_uuid"
 
-    # Pass 2: contains both 'property' and 'uuid'
+    # Pass 2: contains both 'property' and 'uuid' in columns
     for table_name, meta in schema.items():
         for col in meta.get("columns", []):
             name_lower = col["name"].lower()
@@ -36,6 +43,12 @@ def _find_property_uuid_column(schema: dict) -> str:
         for col in meta.get("columns", []):
             if col["name"].lower() == "property":
                 return col["name"]
+        
+        # Check partitions - 'property' partition key often holds UUIDs
+        for part in meta.get("partitions", []):
+            if part["name"].lower() == "property":
+                logger.info("Found 'property' as partition key - will use for filtering")
+                return "property"
 
     return None
 
@@ -82,17 +95,9 @@ DETECTED ENTITIES (use these exact values):
 - This is MANDATORY for all queries - no exceptions
 - Do NOT access data from other properties
 """
-    elif property_uuids:
-        # Fallback — column not found in schema, use property_uuid
-        uuid_in_list = ", ".join(f"'{u}'" for u in property_uuids)
-        property_restriction = f"""
-⚠️ CRITICAL: USER ACCESS RESTRICTION ⚠️
-- This user can ONLY access data for property_uuid values: {uuid_in_list}
-- You MUST add: WHERE property_uuid IN ({uuid_in_list})
-- If query already has WHERE, use AND: WHERE ... AND property_uuid IN ({uuid_in_list})
-- This is MANDATORY for all queries - no exceptions
-- Do NOT access data from other properties
-"""
+    elif property_uuids and not property_col:
+        # Column not found in schema - skip UUID filtering but log warning
+        logger.warning(f"Property UUIDs provided ({property_uuids}) but no property UUID column found in schema - skipping UUID filtering")
     elif property_name:
         property_restriction = f"""
 ⚠️ CRITICAL: USER ACCESS RESTRICTION ⚠️
