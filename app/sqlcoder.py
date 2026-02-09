@@ -79,18 +79,11 @@ def fix_date_comparisons(sql: str) -> str:
     - snapshotdate BETWEEN ... → date_parse(snapshotdate, '%Y-%m-%d') BETWEEN ...
     - year(snapshotdate) → year(date_parse(snapshotdate, '%Y-%m-%d'))
     - month(snapshotdate) → month(date_parse(snapshotdate, '%Y-%m-%d'))
+    - date_trunc('month', snapshotdate) → date_trunc('month', date_parse(snapshotdate, '%Y-%m-%d'))
+
+    Each fix targets specific patterns and won't double-wrap already-fixed instances.
     """
     if not sql:
-        return sql
-    
-    # Check if snapshotdate is already wrapped with date_parse
-    already_wrapped = re.compile(
-        r'date_parse\s*\(\s*snapshotdate',
-        re.IGNORECASE
-    )
-    
-    # If already properly wrapped, return as-is
-    if already_wrapped.search(sql):
         return sql
     
     # Fix 1: Date extraction functions - year(snapshotdate), month(snapshotdate), day(snapshotdate), etc.
@@ -104,6 +97,18 @@ def fix_date_comparisons(sql: str) -> str:
         return f"{func_name}(date_parse(snapshotdate, '%Y-%m-%d'))"
     
     sql = date_func_pattern.sub(replace_date_func, sql)
+    
+    # Fix 1b: date_trunc('interval', snapshotdate) → date_trunc('interval', date_parse(...))
+    date_trunc_pattern = re.compile(
+        r"date_trunc\s*\(\s*(['\"][^'\"]+['\"])\s*,\s*snapshotdate\s*\)",
+        re.IGNORECASE
+    )
+    
+    def replace_date_trunc(match):
+        interval = match.group(1)
+        return f"date_trunc({interval}, date_parse(snapshotdate, '%Y-%m-%d'))"
+    
+    sql = date_trunc_pattern.sub(replace_date_trunc, sql)
     
     # Fix 2: Direct comparisons - snapshotdate >= date_add(...), snapshotdate BETWEEN ..., etc.
     date_comparison_pattern = re.compile(

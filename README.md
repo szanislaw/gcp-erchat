@@ -205,7 +205,7 @@ Converts natural language to SQL **without executing** on Athena.
 
 **cURL Example:**
 ```bash
-curl -X POST http://localhost:8000/nlq/execute \
+curl -X POST http://128.106.57.220:8000/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
     "text": "How many high severity incidents in the last 7 days?",
@@ -216,7 +216,7 @@ curl -X POST http://localhost:8000/nlq/execute \
       "user_role": null
     },
     "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": true, "max_rows": 100, "athena_target": null},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'

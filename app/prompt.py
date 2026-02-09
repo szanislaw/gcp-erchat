@@ -1,6 +1,43 @@
 from app.schema_loader import load_schema, compress_schema
 from app.query_normalizer import preprocess_query
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _find_property_uuid_column(schema: dict) -> str:
+    """
+    Detect the property UUID column name from the Glue schema.
+    The actual column may be 'property_uuid', 'property', etc.
+
+    Priority:
+    1. Exact match: 'property_uuid'
+    2. Contains both 'property' and 'uuid'
+    3. Column named 'property' (often contains UUID values)
+
+    Returns the column name or None if not found.
+    """
+    # Pass 1: exact match 'property_uuid'
+    for table_name, meta in schema.items():
+        for col in meta.get("columns", []):
+            if col["name"].lower() == "property_uuid":
+                return "property_uuid"
+
+    # Pass 2: contains both 'property' and 'uuid'
+    for table_name, meta in schema.items():
+        for col in meta.get("columns", []):
+            name_lower = col["name"].lower()
+            if "property" in name_lower and "uuid" in name_lower:
+                return col["name"]
+
+    # Pass 3: column named exactly 'property'
+    for table_name, meta in schema.items():
+        for col in meta.get("columns", []):
+            if col["name"].lower() == "property":
+                return col["name"]
+
+    return None
 
 
 def build_prompt(text, context, sql, athena_target: str, property_uuid: Optional[str] = None, user_uuid: Optional[str] = None) -> str:
@@ -26,9 +63,27 @@ DETECTED ENTITIES (use these exact values):
 {entity_hints}
 """
 
+    # Detect the actual property UUID column name from Glue schema
+    property_col = _find_property_uuid_column(schema)
+    if property_col:
+        logger.info(f"Detected property UUID column: '{property_col}'")
+    else:
+        logger.warning("Could not detect property UUID column from schema")
+
     # Build property restriction based on authorized property UUIDs
     property_restriction = ""
-    if property_uuids:
+    if property_uuids and property_col:
+        uuid_in_list = ", ".join(f"'{u}'" for u in property_uuids)
+        property_restriction = f"""
+⚠️ CRITICAL: USER ACCESS RESTRICTION ⚠️
+- This user can ONLY access data for {property_col} values: {uuid_in_list}
+- You MUST add: WHERE {property_col} IN ({uuid_in_list})
+- If query already has WHERE, use AND: WHERE ... AND {property_col} IN ({uuid_in_list})
+- This is MANDATORY for all queries - no exceptions
+- Do NOT access data from other properties
+"""
+    elif property_uuids:
+        # Fallback — column not found in schema, use property_uuid
         uuid_in_list = ", ".join(f"'{u}'" for u in property_uuids)
         property_restriction = f"""
 ⚠️ CRITICAL: USER ACCESS RESTRICTION ⚠️
@@ -106,11 +161,14 @@ Real examples (exact syntax):
 ✓ WHERE date_parse(snapshotdate, '%Y-%m-%d') = current_date
 ✓ WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = 2025
 ✓ WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = 2025 AND month(date_parse(snapshotdate, '%Y-%m-%d')) = 6
+✓ date_trunc('month', date_parse(snapshotdate, '%Y-%m-%d'))
+✓ date_trunc('year', date_parse(snapshotdate, '%Y-%m-%d'))
 
 Wrong examples (cause errors):
 ✗ WHERE snapshotdate >= current_date (STRING comparison fails!)
 ✗ WHERE created_date >= current_date (BIGINT comparison fails!)
 ✗ WHERE ... INTERVAL -14 DAY ... (INTERVAL keyword not supported!)
+✗ date_trunc('month', snapshotdate) (VARCHAR parameter fails!)
 
 Generate a SQL query for this request:
 {normalized_text}
