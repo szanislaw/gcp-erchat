@@ -843,6 +843,16 @@ The API will respect your preference:
 | **line** | Time series trend | Any | `GROUP BY` date/time + aggregation |
 | **table** | Raw data or detailed list | >50 rows or no aggregation | `SELECT *`, detail queries |
 
+**Time Series Detection:** The API automatically detects time series queries by analyzing:
+- SQL patterns: `DATE()`, `CAST(... AS DATE)`, `DATE_TRUNC()`, date-related GROUP BY clauses
+- Column names: Columns containing 'date', 'day', 'week', 'month', 'year', 'time'
+- Query structure: Presence of aggregation functions with date grouping
+
+**Example time series queries that will show line charts:**
+- "Show me incidents per day over the last 7 days"
+- "Count incidents by week for the last month"
+- "Daily incident trend"
+
 ### 1. Metric Display (`"type": "metric"`)
 
 **Use Case:** Single KPI values for dashboards

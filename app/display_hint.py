@@ -46,6 +46,14 @@ def get_display_type(sql: str, execution_data: Dict[str, Any]) -> str:
     if _is_time_series(sql_lower, columns) and _has_aggregation(sql_lower) and _has_group_by(sql_lower):
         return "line"
     
+    # Additional time series detection: if we have 2 columns, multiple rows, 
+    # aggregation, GROUP BY, and first column looks like a date, it's likely time series
+    if (col_count == 2 and row_count >= 2 and row_count <= 100 and 
+        _has_aggregation(sql_lower) and _has_group_by(sql_lower)):
+        first_col = columns[0].lower()
+        if any(term in first_col for term in ['date', 'day', 'week', 'month', 'year', 'time']):
+            return "line"
+    
     # Check for pie chart candidates (single metric with categories, limited rows)
     if col_count == 2 and row_count <= 10 and _has_aggregation(sql_lower) and _has_group_by(sql_lower):
         return "pie"
@@ -76,11 +84,25 @@ def _is_time_series(sql: str, columns: List[str]) -> bool:
         r'group\s+by\s+[^,]*extract\s*\(',
         r'group\s+by\s+[^,]*snapshotdate',
         r'group\s+by\s+[^,]*created_date',
+        r'group\s+by\s+[^,]*date\s*\(',  # DATE() function
+        r'group\s+by\s+[^,]*cast\s*\([^)]*as\s+date',  # CAST(... AS DATE)
+        r'group\s+by\s+[^,]*to_char\s*\(',  # TO_CHAR date formatting
+        r'group\s+by\s+[^,]*date_format',  # DATE_FORMAT
+        r'group\s+by\s+[^,]*from_unixtime',  # FROM_UNIXTIME
     ]
     
     for pattern in time_group_patterns:
         if re.search(pattern, sql, re.IGNORECASE):
             return True
+    
+    # Also check column names for time-related terms
+    time_column_names = ['date', 'day', 'week', 'month', 'year', 'time', 'timestamp']
+    for col in columns:
+        col_lower = col.lower()
+        if any(time_term in col_lower for time_term in time_column_names):
+            # If we have a time-named column AND it's likely grouped, treat as time series
+            if re.search(r'group\s+by', sql, re.IGNORECASE):
+                return True
     
     return False
 
