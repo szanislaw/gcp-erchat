@@ -212,9 +212,15 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             executed = True
 
         # Step 8: Determine Display Type
-        display_type = "table"
-        if executed and execution_data:
+        # Use user-provided display type if specified in payload, otherwise auto-detect
+        if req.display and req.display.type:
+            display_type = req.display.type
+            logger.info(f"Using user-specified display type: {display_type}")
+        elif executed and execution_data:
             display_type = get_display_type(sql, execution_data)
+            logger.info(f"Auto-detected display type: {display_type}")
+        else:
+            display_type = "table"
 
         total_latency_ms = int((time.time() - start_time) * 1000)
 

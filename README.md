@@ -196,12 +196,17 @@ Converts natural language to SQL **without executing** on Athena.
   "model": {
     "max_tokens": 512
   },
+  "display": {
+    "type": "metric"
+  },
   "trace": {
     "source": "socket",
     "request_id": "ea6a29ca-ce23-4235-a3dc-5b9850f6bf16"
   }
 }
 ```
+
+> **Note:** The `display` field is **optional**. If provided, it overrides the automatic display type detection. Valid values: `"metric"`, `"pie"`, `"bar"`, `"line"`, `"table"`. If omitted, the API will automatically recommend the best display type based on the query pattern and results.
 
 **cURL Example:**
 ```bash
@@ -777,9 +782,56 @@ aws configure
 - The `.env` file is already in `.gitignore`
 - Only use `.env.example` as a template with placeholder values
 
-## 🎯 Display Type Recommendations
+## 🎯 Display Type Configuration
 
-The API automatically analyzes SQL queries and results to recommend optimal visualization types in the `display.type` field of the response.
+The API provides flexible display type configuration through the `display` field in the request payload. You can either let the API automatically detect the best visualization type or manually specify your preference.
+
+### Auto-Detection (Recommended)
+
+**Omit the `display` field** from your request, and the API will automatically analyze the SQL query pattern and result structure to recommend the optimal visualization type.
+
+```json
+{
+  "text": "How many incidents per status?",
+  "context": { ... },
+  "sql": { "dialect": "athena" },
+  "execution": { "dry_run": false }
+}
+```
+
+The API response will include a recommended display type:
+```json
+{
+  "display": {
+    "type": "bar"
+  }
+}
+```
+
+### Manual Override
+
+**Include the `display` field** in your request to explicitly specify the visualization type, overriding automatic detection.
+
+```json
+{
+  "text": "How many incidents per status?",
+  "context": { ... },
+  "sql": { "dialect": "athena" },
+  "execution": { "dry_run": false },
+  "display": {
+    "type": "pie"
+  }
+}
+```
+
+The API will respect your preference:
+```json
+{
+  "display": {
+    "type": "pie"
+  }
+}
+```
 
 ### Display Types Overview
 
@@ -858,6 +910,26 @@ curl -X POST http://localhost:8000/nlq/execute \
     "sql": {"dialect": "athena", "tables": []},
     "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
     "model": {"max_tokens": 512},
+    "trace": {"source": "socket"}
+  }'
+```
+
+**Example with Manual Override:**
+```bash
+curl -X POST http://localhost:8000/nlq/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Show incident breakdown by severity",
+    "context": {
+      "language": "en",
+      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83,2b618b46-6b80-481b-b1e3-5aec1647b926",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
+      "user_role": null
+    },
+    "sql": {"dialect": "athena", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "model": {"max_tokens": 512},
+    "display": {"type": "bar"},
     "trace": {"source": "socket"}
   }'
 ```

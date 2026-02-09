@@ -3,6 +3,8 @@ import requests
 import pandas as pd
 import json
 from typing import Dict, Any, Optional
+import plotly.express as px
+import plotly.graph_objects as go
 
 # Configuration
 API_BASE_URL = "http://localhost:8080"
@@ -90,6 +92,111 @@ def load_schema(target: str) -> Dict[str, Any]:
     """Load database schema from API"""
     return make_api_request(f"/nlq/schema?target={target}")
 
+def render_chart(df: pd.DataFrame, display_type: str, columns: list) -> None:
+    """
+    Render appropriate chart based on display type recommendation from API.
+    
+    Args:
+        df: DataFrame with query results
+        display_type: One of 'metric', 'pie', 'bar', 'line', 'table'
+        columns: List of column names
+    """
+    if df.empty:
+        st.info("Query returned no results")
+        return
+    
+    try:
+        if display_type == "metric":
+            # Single value - show as large metric card
+            if len(df) == 1 and len(df.columns) == 1:
+                value = df.iloc[0, 0]
+                col_name = df.columns[0]
+                st.metric(label=col_name.replace("_", " ").title(), value=f"{value:,}" if isinstance(value, (int, float)) else value)
+            elif len(df) == 1:
+                # Multiple metrics in one row
+                cols = st.columns(len(df.columns))
+                for idx, col_name in enumerate(df.columns):
+                    with cols[idx]:
+                        value = df.iloc[0, idx]
+                        st.metric(label=col_name.replace("_", " ").title(), value=f"{value:,}" if isinstance(value, (int, float)) else value)
+            else:
+                # Fallback to table if multiple rows
+                st.dataframe(df, use_container_width=True)
+        
+        elif display_type == "pie":
+            # Pie chart for categorical breakdown
+            if len(df.columns) >= 2:
+                labels_col = df.columns[0]
+                values_col = df.columns[1]
+                
+                fig = px.pie(
+                    df, 
+                    names=labels_col, 
+                    values=values_col,
+                    title=f"{values_col.replace('_', ' ').title()} by {labels_col.replace('_', ' ').title()}"
+                )
+                fig.update_traces(textposition='inside', textinfo='percent+label')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("Pie chart requires at least 2 columns (category, value)")
+                st.dataframe(df, use_container_width=True)
+        
+        elif display_type == "bar":
+            # Bar chart for categorical comparisons
+            if len(df.columns) >= 2:
+                x_col = df.columns[0]
+                y_col = df.columns[1]
+                
+                fig = px.bar(
+                    df, 
+                    x=x_col, 
+                    y=y_col,
+                    title=f"{y_col.replace('_', ' ').title()} by {x_col.replace('_', ' ').title()}",
+                    text=y_col
+                )
+                fig.update_traces(texttemplate='%{text:.2s}', textposition='outside')
+                fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("Bar chart requires at least 2 columns (category, value)")
+                st.dataframe(df, use_container_width=True)
+        
+        elif display_type == "line":
+            # Line chart for time series
+            if len(df.columns) >= 2:
+                x_col = df.columns[0]
+                
+                # Support multiple y-axis columns
+                y_cols = df.columns[1:]
+                
+                fig = go.Figure()
+                for y_col in y_cols:
+                    fig.add_trace(go.Scatter(
+                        x=df[x_col], 
+                        y=df[y_col],
+                        mode='lines+markers',
+                        name=y_col.replace('_', ' ').title()
+                    ))
+                
+                fig.update_layout(
+                    title=f"Trend over {x_col.replace('_', ' ').title()}",
+                    xaxis_title=x_col.replace('_', ' ').title(),
+                    yaxis_title='Value',
+                    hovermode='x unified'
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("Line chart requires at least 2 columns (x-axis, y-axis)")
+                st.dataframe(df, use_container_width=True)
+        
+        else:
+            # Default table view
+            st.dataframe(df, use_container_width=True)
+            
+    except Exception as e:
+        st.warning(f"Could not render {display_type} chart: {str(e)}. Showing table instead.")
+        st.dataframe(df, use_container_width=True)
+
 # Header
 st.title("🔍 NLQ → Athena Query Interface")
 st.markdown("Convert natural language questions to SQL and query AWS Athena")
@@ -145,6 +252,24 @@ with st.sidebar:
     dry_run = st.checkbox("Dry Run", value=False, help="Generate SQL without executing")
     max_rows = st.slider("Max Rows", min_value=10, max_value=1000, value=100, step=10)
     dialect = st.selectbox("SQL Dialect", options=["athena", "postgres"], index=0)
+    
+    # Visualization options
+    st.subheader("📊 Visualization Options")
+    override_display_type = st.checkbox(
+        "Override Display Type",
+        value=False,
+        help="Manually select chart type instead of using API recommendation"
+    )
+    
+    if override_display_type:
+        manual_display_type = st.selectbox(
+            "Chart Type",
+            options=["table", "metric", "pie", "bar", "line"],
+            index=0,
+            help="Manually select how to display the results"
+        )
+    else:
+        manual_display_type = None
     
     # Info section
     st.divider()
@@ -306,13 +431,27 @@ with tab1:
                 if data.get("rows"):
                     df = pd.DataFrame(data["rows"])
                     
-                    # Determine display type
-                    display_type = result.get("display", {}).get("type", "table")
-                    
-                    if display_type == "chart" and len(df.columns) >= 2:
-                        # Try to create a chart
-                        st.line_chart(df.set_index(df.columns[0]))
+                    # Determine display type - use manual override if selected, otherwise use API recommendation
+                    if manual_display_type:
+                        display_type = manual_display_type
+                        st.caption(f"🎯 Display Type: **{display_type.upper()}** (manual override)")
                     else:
+                        display_type = result.get("display", {}).get("type", "table")
+                        # Show display type indicator
+                        display_icons = {
+                            "metric": "📈",
+                            "pie": "🥧",
+                            "bar": "📊",
+                            "line": "📉",
+                            "table": "📋"
+                        }
+                        st.caption(f"{display_icons.get(display_type, '📊')} Display Type: **{display_type.upper()}** (API recommended)")
+                    
+                    # Render chart based on display type
+                    render_chart(df, display_type, data.get("columns", []))
+                    
+                    # Show raw data option
+                    with st.expander("🔍 View Raw Data", expanded=False):
                         st.dataframe(df, use_container_width=True)
                     
                     # Download button
