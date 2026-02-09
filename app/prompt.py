@@ -123,17 +123,20 @@ STRICT RULES:
 - DO NOT perform cross-database joins
 - Prefer partition columns when filtering
 - ALWAYS include a LIMIT clause (respect the requested number, max 100)
-- For year-based filtering, use: WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = YYYY
 - Use LOWERCASE for categorical values (severity_name, status_name, etc.)
 - Use EXACT CASE for property names and location names (e.g., 'The Peninsula Manila')
 - Use LOWER() function for case-insensitive matching when needed
 {property_restriction}
-DATE FILTERING RULES (MANDATORY):
+DATE FILTERING RULES (ONLY WHEN USER ASKS ABOUT DATES/TIME):
+⚠️ IMPORTANT: Only add date filters if the user question mentions dates, time periods, or temporal context
+- Examples needing date filters: "today", "yesterday", "last 7 days", "this month", "in 2025"
+- Examples NOT needing date filters: "count by department", "all incidents", "by severity"
 - snapshotdate is a STRING - ALWAYS write: date_parse(snapshotdate, '%Y-%m-%d')
 - For any date comparisons: date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -X, current_date)
 - Exact syntax: date_add('day', -14, current_date) NOT date_add(INTERVAL -14 DAY, ...)
 - Use date_add() with NEGATIVE numbers (NO date_sub or INTERVAL keywords)
 - created_date/incident_time are BIGINT - ONLY use for ORDER BY, NEVER in WHERE for dates
+- For year-based filtering: WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = YYYY
 
 Available tables and schemas:
 {schema_text}
