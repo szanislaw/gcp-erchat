@@ -167,8 +167,9 @@
 
 ---
 
-## 📋 Sample API Request for Demo
+## 📋 Sample API Requests with Hardcoded Display Types
 
+### Example 1: Metric Display (Q5 - Severity Count)
 ```bash
 curl -X POST http://localhost:8080/nlq/execute \
   -H "Content-Type: application/json" \
@@ -176,7 +177,7 @@ curl -X POST http://localhost:8080/nlq/execute \
     "text": "How many high severity incidents in the last 30 days?",
     "context": {
       "language": "en",
-      "property_uuid": "c7254cc9-9145-4602-b44b-0c1cff335f83",
+      "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec",
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"
     },
     "sql": {"dialect": "athena"},
@@ -185,6 +186,337 @@ curl -X POST http://localhost:8080/nlq/execute \
     "display": {"type": "metric"},
     "trace": {"source": "gm-demo"}
   }'
+```
+
+### Example 2: Pie Chart Display (Q14 - Severity Breakdown)
+```bash
+curl -X POST http://localhost:8080/nlq/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Show incident breakdown by severity",
+    "context": {
+      "language": "en",
+      "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"
+    },
+    "sql": {"dialect": "athena"},
+    "execution": {"dry_run": false, "max_rows": 100},
+    "model": {"max_tokens": 512},
+    "display": {"type": "pie"},
+    "trace": {"source": "gm-demo"}
+  }'
+```
+
+### Example 3: Bar Chart Display (Q3 - Department Count)
+```bash
+curl -X POST http://localhost:8080/nlq/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Count incidents by department",
+    "context": {
+      "language": "en",
+      "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"
+    },
+    "sql": {"dialect": "athena"},
+    "execution": {"dry_run": false, "max_rows": 100},
+    "model": {"max_tokens": 512},
+    "display": {"type": "bar"},
+    "trace": {"source": "gm-demo"}
+  }'
+```
+
+### Example 4: Table Display (Q2 - Pending Incidents)
+```bash
+curl -X POST http://localhost:8080/nlq/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Show me all pending incidents",
+    "context": {
+      "language": "en",
+      "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"
+    },
+    "sql": {"dialect": "athena"},
+    "execution": {"dry_run": false, "max_rows": 100},
+    "model": {"max_tokens": 512},
+    "display": {"type": "table"},
+    "trace": {"source": "gm-demo"}
+  }'
+```
+
+---
+
+## 📝 Complete Request Payloads for All 20 Questions
+
+### OPERATIONAL OVERVIEW
+
+**Q1: Daily Operations Dashboard (metric)**
+```json
+{
+  "text": "How many incidents were reported today?",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "metric"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q2: Current Open Issues (table)**
+```json
+{
+  "text": "Show me all pending incidents",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "table"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q3: Property-Wide Summary (bar)**
+```json
+{
+  "text": "Count incidents by department",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "bar"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q4: Weekly Trend (table)**
+```json
+{
+  "text": "Show incidents from last 7 days",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "table"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q5: Severity Distribution (metric)**
+```json
+{
+  "text": "How many high severity incidents in the last 30 days?",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "metric"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+### GUEST EXPERIENCE
+
+**Q6: Room Service Issues (table)**
+```json
+{
+  "text": "Show me Room Service incidents from this week",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "table"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q7: Housekeeping Performance (pie)**
+```json
+{
+  "text": "What are the most common Room Cleanliness incidents?",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "pie"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q8: Guest Complaint Tracking (table)**
+```json
+{
+  "text": "Show high severity incidents that are still pending",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "table"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q9: Room-Specific Issues (table)**
+```json
+{
+  "text": "Show me all incidents at room 1018",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "table"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+### FINANCIAL IMPACT
+
+**Q10: Total Compensation Costs (metric)**
+```json
+{
+  "text": "What is the total actual cost of all incidents?",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "metric"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q11: High-Cost Incidents (table)**
+```json
+{
+  "text": "Show me the top 5 incidents by actual cost",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "table"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q12: Compensation Analysis (bar)**
+```json
+{
+  "text": "What is the average actual cost for completed incidents by category?",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "bar"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+### PERFORMANCE ANALYTICS
+
+**Q13: Department Accountability (bar)**
+```json
+{
+  "text": "Which department has the most incidents?",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "bar"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q14: Severity Analysis (pie)**
+```json
+{
+  "text": "Show incident breakdown by severity",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "pie"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q15: Category Distribution (bar)**
+```json
+{
+  "text": "Count incidents by category",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "bar"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q16: Recent Critical Issues (table)**
+```json
+{
+  "text": "Show recent Housekeeping incidents with medium severity",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "table"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+### STRATEGIC INSIGHTS
+
+**Q17: Resolution Tracking (metric)**
+```json
+{
+  "text": "How many incidents were completed in the last month?",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "metric"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q18: Property Comparison (bar)**
+```json
+{
+  "text": "How many incidents does each property have?",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "bar"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q19: Incident Trend Analysis (table)**
+```json
+{
+  "text": "Show me incidents ordered by severity",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "table"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q20: Status Overview (pie)**
+```json
+{
+  "text": "Count incidents by status",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "pie"},
+  "trace": {"source": "gm-demo"}
+}
 ```
 
 ---

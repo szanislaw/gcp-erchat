@@ -142,7 +142,9 @@ Available tables and schemas:
 {schema_text}
 {entity_context}
 Semantic hints:
-- For "most recent", prefer bigint timestamp columns such as created_date or incident_time
+- For "recent" queries (without specific time period): Use ORDER BY created_date DESC LIMIT X - NO date filtering needed
+- ⚠️ "Recent" means "most recent records", not "last N days" - just sort by timestamp
+- For "most recent", prefer bigint timestamp columns such as created_date or incident_time for ORDER BY
 - Do not use string date columns for recency ordering if bigint timestamps exist
 - Categorical values (severity_name, status_name, category_name, etc.) are lowercase in the database
 - Use lowercase values: 'high', 'medium', 'low' for severity

@@ -33,6 +33,22 @@ SELECT_REGEX = re.compile(
 _sql_cache: Dict[str, dict] = {}
 _CACHE_MAX_SIZE = 500
 
+BIGINT_TIMESTAMP_COLUMNS = (
+    "created_date",
+    "incident_time",
+    "completed_date",
+    "cancelled_date",
+)
+
+_BIGINT_COLUMN_PATTERN = "|".join(BIGINT_TIMESTAMP_COLUMNS)
+_QUALIFIED_BIGINT_COLUMN_PATTERN = rf"(?:\b\w+\.)?(?:{_BIGINT_COLUMN_PATTERN})\b"
+_CLAUSE_BOUNDARY = r"(?=\s+(?:and|or|group\s+by|order\s+by|limit|having)\b|$)"
+_DATE_LITERAL_RE = re.compile(r"^'?\d{4}-\d{2}-\d{2}'?$", re.IGNORECASE)
+_DATE_EXPR_RE = re.compile(
+    r"\b(current_date|current_timestamp|date_add\s*\(|date_parse\s*\(|date_trunc\s*\(|from_iso8601_date\s*\(|cast\s*\(.*?\bas\s+date\b|date\s*')",
+    re.IGNORECASE,
+)
+
 
 def _get_cache_key(prompt: str, max_tokens: int) -> str:
     """Generate cache key from prompt and parameters"""
@@ -52,7 +68,8 @@ def load_model():
 
         model_name = "Ellbendls/Qwen-2.5-3b-Text_to_SQL"
 
-        _tokenizer = AutoTokenizer.from_pretrained(model_name)
+        # Use slow tokenizer to avoid corrupted fast tokenizer file
+        _tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
 
         _model = AutoModelForCausalLM.from_pretrained(
             model_name,
@@ -128,6 +145,93 @@ def fix_date_comparisons(sql: str) -> str:
     return fixed_sql
 
 
+def _looks_like_date_expression(expr: str) -> bool:
+    """Check if SQL expression is date-like (DATE/TIMESTAMP function or yyyy-mm-dd literal)."""
+    candidate = expr.strip()
+    if _DATE_LITERAL_RE.match(candidate):
+        return True
+    return bool(_DATE_EXPR_RE.search(candidate))
+
+
+def fix_bigint_date_comparisons(sql: str) -> str:
+    """
+    Fix Athena type mismatches where BIGINT timestamp columns are compared to DATE.
+
+    Rewrites date-based predicates on bigint timestamp columns to use snapshotdate,
+    which is the canonical date partition used for date filtering.
+    """
+    if not sql:
+        return sql
+
+    original_sql = sql
+
+    # Normalize CAST/DATE wrappers around BIGINT timestamp columns.
+    sql = re.sub(
+        rf"\bcast\s*\(\s*{_QUALIFIED_BIGINT_COLUMN_PATTERN}\s+as\s+date\s*\)",
+        "date_parse(snapshotdate, '%Y-%m-%d')",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = re.sub(
+        rf"\bdate\s*\(\s*{_QUALIFIED_BIGINT_COLUMN_PATTERN}\s*\)",
+        "date_parse(snapshotdate, '%Y-%m-%d')",
+        sql,
+        flags=re.IGNORECASE,
+    )
+
+    # BIGINT timestamp comparison with DATE expression.
+    comparison_pattern = re.compile(
+        rf"{_QUALIFIED_BIGINT_COLUMN_PATTERN}\s*(<=|>=|<|>|=)\s*(.+?){_CLAUSE_BOUNDARY}",
+        re.IGNORECASE,
+    )
+
+    def _replace_comparison(match: re.Match) -> str:
+        operator = match.group(1)
+        rhs = match.group(2).strip()
+        if _looks_like_date_expression(rhs):
+            return f"date_parse(snapshotdate, '%Y-%m-%d') {operator} {rhs}"
+        return match.group(0)
+
+    sql = comparison_pattern.sub(_replace_comparison, sql)
+
+    # DATE expression compared to BIGINT timestamp column (reversed operands).
+    reverse_comparison_pattern = re.compile(
+        rf"(.+?)\s*(<=|>=|<|>|=)\s*({_QUALIFIED_BIGINT_COLUMN_PATTERN}){_CLAUSE_BOUNDARY}",
+        re.IGNORECASE,
+    )
+
+    def _replace_reverse_comparison(match: re.Match) -> str:
+        lhs = match.group(1).strip()
+        operator = match.group(2)
+        if _looks_like_date_expression(lhs):
+            return f"{lhs} {operator} date_parse(snapshotdate, '%Y-%m-%d')"
+        return match.group(0)
+
+    sql = reverse_comparison_pattern.sub(_replace_reverse_comparison, sql)
+
+    # BETWEEN predicates on BIGINT timestamp columns.
+    between_pattern = re.compile(
+        rf"{_QUALIFIED_BIGINT_COLUMN_PATTERN}\s+between\s+(.+?)\s+and\s+(.+?){_CLAUSE_BOUNDARY}",
+        re.IGNORECASE,
+    )
+
+    def _replace_between(match: re.Match) -> str:
+        start_expr = match.group(1).strip()
+        end_expr = match.group(2).strip()
+        if _looks_like_date_expression(start_expr) or _looks_like_date_expression(end_expr):
+            return (
+                f"date_parse(snapshotdate, '%Y-%m-%d') BETWEEN {start_expr} AND {end_expr}"
+            )
+        return match.group(0)
+
+    sql = between_pattern.sub(_replace_between, sql)
+
+    if sql != original_sql:
+        logger.info("Rewrote bigint/date predicates to snapshotdate for Athena compatibility")
+
+    return sql
+
+
 def fix_table_names(sql: str, allowed_tables: list = None) -> str:
     """
     Fix hallucinated table names by replacing variants with the correct table name.
@@ -176,6 +280,8 @@ def extract_sql(text: str) -> str:
     
     # Fix date comparisons for snapshotdate (VARCHAR column)
     sql = fix_date_comparisons(sql)
+    # Fix invalid BIGINT timestamp vs DATE comparisons (Athena TYPE_MISMATCH)
+    sql = fix_bigint_date_comparisons(sql)
 
     # Only add LIMIT if missing, and cap at 100 for safety
     if " limit " not in sql.lower():

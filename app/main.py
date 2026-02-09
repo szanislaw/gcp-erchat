@@ -272,6 +272,17 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             error=str(e)
         )
         raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        # Query execution errors from Athena should be returned as client-visible SQL errors, not 500.
+        error_response = {"success": False, "error": str(e)}
+        log_request(
+            request_id=request_id,
+            request_data=req.dict(),
+            response_data=error_response,
+            status_code=400,
+            error=str(e)
+        )
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         # Unexpected errors - log full traceback
         logger.exception(f"Unexpected error processing request {request_id}")
