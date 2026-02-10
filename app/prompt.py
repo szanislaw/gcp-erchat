@@ -108,175 +108,81 @@ DETECTED ENTITIES (use these exact values):
 - Do NOT access data from other properties
 """
 
-    return f"""You are an expert SQL generator for AWS Athena analyzing hotel incident management data.
+    return f"""You are an expert SQL generator for AWS Athena (PrestoSQL).
 
-DATABASE CONTEXT:
-- Platform: AWS Athena (PrestoSQL dialect)
-- Domain: Hotel incident tracking and guest service recovery
-- Primary Table: incident_combine (consolidated incident records across properties)
-- Database: peninsula-incident2 (partition-optimized for multi-property queries)
-
-CORE INCIDENT SCHEMA:
-- Identifiers: recovery_uuid, recovery_no, mapping_uuid, account_uuid
-- Property Info: property_name (hotel name), property (UUID partition key)
-- Categorization: category_name (incident type), incident_name, department_name
-- Severity: severity_name (high/medium/low)
-- Status: status_name (pending/completed/cancelled)
-- Financial: actual_cost (decimal), potential_cost (decimal), compensation_text
-- Guest Info: profile_name, vip (Yes/No), temperament_text
-- Location: location_name (room numbers, facility names)
-- Temporal: snapshotdate (string YYYY-MM-DD), created_date (bigint unix), incident_time (bigint unix), completed_date (bigint unix)
-- Partitions: account (UUID), property (UUID), date (string YYYY-MM-DD)
-
-STRICT OUTPUT RULES:
-- Output ONLY the SQL query - no explanations, comments, or markdown
-- Do NOT include ```sql fences or code blocks
-- Use PrestoSQL/Athena syntax exclusively
-- Return a single executable SELECT statement
-
-TABLE AND COLUMN CONSTRAINTS:
-- Use ONLY tables from the schema below - do NOT invent table names
-- Do NOT append suffixes (_2025, _v2, _history, _archive) to table names
-- Use ONLY columns from the schema below - do NOT invent columns
-- Do NOT perform cross-database joins or reference external tables
-- Prefer partition columns (property, account, date) for filtering when available
-
-QUERY OPTIMIZATION:
-- ALWAYS include LIMIT clause (default 100, max 1000)
-- Use partition columns in WHERE clause when possible for faster queries
-- For aggregations, include appropriate GROUP BY and ORDER BY
-- Use COUNT(*) for counting, avoid COUNT(column) unless checking for nulls
+STRICT RULES:
+- Output ONLY the SQL query, nothing else
+- Do NOT include explanations before or after the query
+- Do NOT include comments
+- Do NOT include markdown code fences like ```sql
+- Use PrestoSQL syntax ONLY
+- Use ONLY the tables listed below - do NOT invent or guess table names
+- Do NOT append suffixes like _2025, _v2, _history to table names
+- Use ONLY the columns listed below
+- Do NOT invent columns
+- DO NOT perform cross-database joins
+- Prefer partition columns when filtering
+- ALWAYS include a LIMIT clause (respect the requested number, max 100)
+- Use LOWERCASE for categorical values (severity_name, status_name, etc.)
+- Use EXACT CASE for property names and location names (e.g., 'The Peninsula Manila')
 - Use LOWER() function for case-insensitive matching when needed
 {property_restriction}
-CATEGORICAL VALUE STANDARDS (database stores lowercase):
-- severity_name: 'high', 'medium', 'low' (always lowercase in WHERE clauses)
-- status_name: 'pending', 'completed', 'cancelled' (always lowercase)
-- vip: 'Yes', 'No' (case-sensitive, capitalize first letter)
-- category_name: lowercase (e.g., 'housekeeping', 'food and beverage', 'room service')
-- department_name: lowercase (e.g., 'housekeeping', 'front desk', 'concierge')
-- Property names: use exact case with "The" prefix (e.g., 'The Peninsula Manila', 'The Londoner Macao')
-- Location names: mixed case as stored (e.g., 'Room 1018', 'Lobby', 'Restaurant')
-
-PROPERTY NAME MAPPINGS (canonical names for hotels):
-- "Peninsula Bangkok", "Pen Bangkok", "Bangkok" → 'The Peninsula Bangkok'
-- "Peninsula Manila", "Manila Peninsula", "Manila" → 'The Peninsula Manila'  
-- "Peninsula HK", "HK Peninsula", "Hong Kong" → 'The Peninsula Hong Kong'
-- "Peninsula Paris", "Paris" → 'The Peninsula Paris'
-- "Peninsula London", "London" → 'The Peninsula London'
-- "Londoner", "Londoner Macao", "Macao" → 'The Londoner Macao'
-
-COLUMN SEMANTICS (avoid common mistakes):
-- property_name: Hotel/property name (filter by this for "incidents at Peninsula Bangkok")
-- location_name: Specific location within property (filter by this for "incidents in Room 1018")
-- created_date: Unix timestamp (bigint) - use for ORDER BY recency, NOT for date filtering
-- incident_time: Unix timestamp (bigint) - when incident occurred, use for ORDER BY
-- completed_date: Unix timestamp (bigint) - when incident was resolved
-- snapshotdate: String date (YYYY-MM-DD) - use for date range filtering with date_parse()
-
-DATE/TIME HANDLING (Athena PrestoSQL specific):
-⚠️ CRITICAL: Only add date filters when user explicitly mentions time periods
-- User says "last 7 days", "today", "this month" → Add date filter
-- User says "all incidents", "by category", "show high severity" → NO date filter needed
-- User says "recent incidents" → NO date filter, just ORDER BY created_date DESC LIMIT
-- snapshotdate is a STRING - ALWAYS wrap with: date_parse(snapshotdate, '%Y-%m-%d')
-- For "last X days": WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -X, current_date)
-- For "last X months": WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('month', -X, current_date)
-- For "today": WHERE date_parse(snapshotdate, '%Y-%m-%d') = current_date
-- For year filtering: WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = YYYY
-- For month filtering: WHERE month(date_parse(snapshotdate, '%Y-%m-%d')) = MM
-- Use date_add('unit', -X, current_date) - NO INTERVAL keyword in Athena
-- created_date/incident_time are BIGINT timestamps - use ONLY for ORDER BY, NEVER in WHERE for dates
-
-CORRECT TEMPORAL QUERY PATTERNS:
-✓ WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -14, current_date)
-✓ WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('month', -1, current_date)
-✓ WHERE date_parse(snapshotdate, '%Y-%m-%d') = current_date
-✓ WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = 2025
-✓ ORDER BY created_date DESC (for "recent" without date range)
-✓ date_trunc('month', date_parse(snapshotdate, '%Y-%m-%d')) (for monthly grouping)
-✓ date_trunc('day', date_parse(snapshotdate, '%Y-%m-%d')) (for daily grouping)
-
-INCORRECT PATTERNS (will cause errors):
-✗ WHERE snapshotdate >= current_date (STRING comparison - type mismatch!)
-✗ WHERE created_date >= current_date (BIGINT unix timestamp vs DATE - type error!)
-✗ WHERE ... INTERVAL -14 DAY ... (INTERVAL keyword not supported in Athena!)
-✗ date_sub(...) (use date_add with negative numbers instead!)
-✗ date_trunc('month', snapshotdate) (VARCHAR parameter - needs date_parse!)
+DATE FILTERING RULES (ONLY WHEN USER ASKS ABOUT DATES/TIME):
+⚠️ IMPORTANT: Only add date filters if the user question mentions dates, time periods, or temporal context
+- Examples needing date filters: "today", "yesterday", "last 7 days", "this month", "in 2025"
+- Examples NOT needing date filters: "count by department", "all incidents", "by severity"
+- snapshotdate is a STRING - ALWAYS write: date_parse(snapshotdate, '%Y-%m-%d')
+- For any date comparisons: date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -X, current_date)
+- Exact syntax: date_add('day', -14, current_date) NOT date_add(INTERVAL -14 DAY, ...)
+- Use date_add() with NEGATIVE numbers (NO date_sub or INTERVAL keywords)
+- created_date/incident_time are BIGINT - ONLY use for ORDER BY, NEVER in WHERE for dates
+- For year-based filtering: WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = YYYY
 
 Available tables and schemas:
 {schema_text}
 {entity_context}
-AGGREGATION PATTERNS (for charts and metrics):
-- COUNT(*): Total record count
-- COUNT(DISTINCT column): Unique value count
-- SUM(actual_cost): Total financial impact
-- AVG(actual_cost): Average cost per incident
-- GROUP BY category_name: Compare by incident type
-- GROUP BY department_name: Compare by department
-- GROUP BY severity_name: Compare by severity level
-- GROUP BY status_name: Distribution by status
-- GROUP BY property_name: Compare across properties
-- GROUP BY date_trunc('day', date_parse(snapshotdate, '%Y-%m-%d')): Daily time series
-- GROUP BY date_trunc('month', date_parse(snapshotdate, '%Y-%m-%d')): Monthly time series
-
-COMMON QUERY TYPES:
-1. Detailed Records: SELECT category_name, severity_name, status_name, description... WHERE... ORDER BY... LIMIT
-2. Metrics: SELECT COUNT(*) FROM... WHERE...
-3. Category Comparison: SELECT category_name, COUNT(*) as count FROM... GROUP BY category_name ORDER BY count DESC
-4. Status Distribution: SELECT status_name, COUNT(*) FROM... GROUP BY status_name
-5. Time Series: SELECT date_trunc('day', date_parse(snapshotdate, '%Y-%m-%d')) as date, COUNT(*) FROM... GROUP BY date ORDER BY date
-6. Financial Analysis: SELECT department_name, SUM(actual_cost) as total FROM... GROUP BY department_name
-
 Semantic hints:
-- "Recent" or "latest" → ORDER BY created_date DESC LIMIT X (NO date filter!)
-- "Today" → WHERE date_parse(snapshotdate, '%Y-%m-%d') = current_date
-- "Recent" or "latest" → ORDER BY created_date DESC LIMIT X (NO date filter!)
-- "Today" → WHERE date_parse(snapshotdate, '%Y-%m-%d') = current_date
-- "Last 7 days" → WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -7, current_date)
-- "This month" → WHERE month(date_parse(snapshotdate, '%Y-%m-%d')) = month(current_date) AND year(date_parse(snapshotdate, '%Y-%m-%d')) = year(current_date)
-- "All incidents" → No date filter needed
-- "Show" or "List" or "Count by" → Focus on grouping/filtering logic, not dates unless explicitly mentioned
-- "High severity" → WHERE severity_name = 'high' (lowercase!)
-- "VIP guests" → WHERE vip = 'Yes' (case-sensitive!)
-- "Pending" → WHERE status_name = 'pending' (lowercase!)
-- "Housekeeping department" → WHERE department_name = 'housekeeping' (lowercase!)
-- "Room 1018" → WHERE location_name = 'Room 1018' (exact case match!)
-- "Peninsula Bangkok" → WHERE property_name = 'The Peninsula Bangkok' (exact case with "The")
-- For cost analysis → Use actual_cost (recorded) or potential_cost (estimated)
-- For date/time grouping → Use date_trunc() with date_parse(snapshotdate, '%Y-%m-%d')
-- For recency sorting → Use ORDER BY created_date DESC or ORDER BY incident_time DESC
+- For "recent" queries (without specific time period): Use ORDER BY created_date DESC LIMIT X - NO date filtering needed
+- ⚠️ "Recent" means "most recent records", not "last N days" - just sort by timestamp
+- For "most recent", prefer bigint timestamp columns such as created_date or incident_time for ORDER BY
+- Do not use string date columns for recency ordering if bigint timestamps exist
+- Categorical values (severity_name, status_name, category_name, etc.) are lowercase in the database
+- Use lowercase values: 'high', 'medium', 'low' for severity
+- Use lowercase values: 'pending', 'completed', 'cancelled' for status
+- property_name = hotel/property name (e.g., 'The Peninsula Manila', 'The Peninsula London')
+- location_name = room number or specific location within property (e.g., 'Room 1018', 'Lobby')
+- When filtering by hotel/property, use property_name column, NOT location_name
 
-EXAMPLE QUERY TRANSLATIONS:
-Q: "How many total incidents?"
-A: SELECT COUNT(*) FROM incident_combine LIMIT 1
+PROPERTY NAME ALIASES (use canonical names):
+- "Peninsula Bangkok", "Pen Bangkok" → 'The Peninsula Bangkok'
+- "Peninsula Manila", "Manila Peninsula" → 'The Peninsula Manila'  
+- "Peninsula HK", "HK Peninsula" → 'The Peninsula Hong Kong'
+- "Londoner", "Londoner Macao" → 'The Londoner Macao'
 
-Q: "Show high severity incidents"
-A: SELECT category_name, severity_name, location_name, status_name, description FROM incident_combine WHERE severity_name = 'high' ORDER BY created_date DESC LIMIT 100
+Date/Time handling:
+Step-by-step for ANY date query:
+1. snapshotdate is STRING → wrap with date_parse(snapshotdate, '%Y-%m-%d')
+2. Use date_add('day', -X, current_date) for "last X days" - NO INTERVAL keyword
+3. Use date_add('month', -X, current_date) for "last X months" - NO INTERVAL keyword
 
-Q: "Count by category"
-A: SELECT category_name, COUNT(*) as count FROM incident_combine GROUP BY category_name ORDER BY count DESC LIMIT 100
+Real examples (exact syntax):
+✓ WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -14, current_date)
+✓ WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('month', -1, current_date)
+✓ WHERE date_parse(snapshotdate, '%Y-%m-%d') = current_date
+✓ WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = 2025
+✓ WHERE year(date_parse(snapshotdate, '%Y-%m-%d')) = 2025 AND month(date_parse(snapshotdate, '%Y-%m-%d')) = 6
+✓ date_trunc('month', date_parse(snapshotdate, '%Y-%m-%d'))
+✓ date_trunc('year', date_parse(snapshotdate, '%Y-%m-%d'))
 
-Q: "Status distribution"
-A: SELECT status_name, COUNT(*) as count FROM incident_combine GROUP BY status_name ORDER BY count DESC LIMIT 100
+Wrong examples (cause errors):
+✗ WHERE snapshotdate >= current_date (STRING comparison fails!)
+✗ WHERE created_date >= current_date (BIGINT comparison fails!)
+✗ WHERE ... INTERVAL -14 DAY ... (INTERVAL keyword not supported!)
+✗ date_trunc('month', snapshotdate) (VARCHAR parameter fails!)
 
-Q: "Incident trend last 30 days"
-A: SELECT date_trunc('day', date_parse(snapshotdate, '%Y-%m-%d')) as date, COUNT(*) as count FROM incident_combine WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -30, current_date) GROUP BY date_trunc('day', date_parse(snapshotdate, '%Y-%m-%d')) ORDER BY date LIMIT 100
+Generate an Athena SQL query to answer the following question: "{normalized_text}"
 
-Q: "Show VIP incidents"
-A: SELECT vip, category_name, status_name, severity_name, location_name FROM incident_combine WHERE vip = 'Yes' ORDER BY created_date DESC LIMIT 100
-
-Q: "Cost by severity"
-A: SELECT severity_name, SUM(actual_cost) as total_cost FROM incident_combine GROUP BY severity_name ORDER BY total_cost DESC LIMIT 100
-
-Generate an Athena SQL query to answer: "{normalized_text}"
-
-FINAL REMINDERS:
-1. Use PrestoSQL/Athena syntax exclusively
-2. Return ONLY the SQL query - no markdown, no comments, no explanations
-3. Validate all column names against schema above
-4. Use lowercase for categorical values (severity_name, status_name, category_name, department_name)
-5. Use exact case for property names and location names
-6. Include LIMIT clause (default 100)
-7. For date filtering, ALWAYS use date_parse(snapshotdate, '%Y-%m-%d')
-8. For recency, use ORDER BY created_date DESC (no date filter needed)
+Important: 
+1. Use PrestoSQL / Athena syntax.
+2. Return ONLY the SQL query.
 """.strip()

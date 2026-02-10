@@ -27,14 +27,19 @@ SQL_KEYWORDS = {
     'row', 'rows', 'range', 'preceding', 'following', 'current', 'unbounded',
     'lateral', 'cross', 'inner', 'outer', 'left', 'right', 'full', 'natural',
     'join', 'with', 'recursive', 'values', 'default', 'set', 'coalesce',
-    'greatest', 'least', 'date', 'time', 'timestamp', 'interval'
+    'greatest', 'least', 'date', 'time', 'timestamp', 'interval',
+    # Common words that appear in SQL but are not tables
+    'the', 'a', 'an', 'other', 'another', 'this', 'that', 'these', 'those',
+    'each', 'every', 'some', 'many', 'few', 'several', 'both', 'either', 'neither',
+    # Date/time keywords
+    'year', 'month', 'day', 'hour', 'minute', 'second', 'week', 'quarter'
 }
 
 
 def extract_tables(sql: str) -> Set[str]:
     """
     Extract all table names from SQL query using comprehensive pattern matching.
-    Filters out SQL keywords that might be falsely detected as table names.
+    Filters out SQL keywords and common English words that might be falsely detected.
     
     Args:
         sql: SQL query string
@@ -51,9 +56,27 @@ def extract_tables(sql: str) -> Set[str]:
     for pattern in TABLE_PATTERNS:
         matches = re.findall(pattern, sql_lower, re.IGNORECASE)
         for match in matches:
-            # Filter out SQL keywords
-            if match.lower() not in SQL_KEYWORDS:
-                found_tables.add(match.lower())
+            # Clean the match (remove leading/trailing whitespace)
+            match = match.strip()
+            
+            # Skip if empty after stripping
+            if not match:
+                continue
+            
+            # Filter out SQL keywords and common words
+            if match.lower() in SQL_KEYWORDS:
+                continue
+            
+            # Additional validation: table names should be valid identifiers
+            # Must start with letter or underscore, contain only alphanumeric and underscore
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', match):
+                continue
+            
+            # Skip very short names (1-2 chars) that are likely not real tables
+            if len(match) <= 2:
+                continue
+            
+            found_tables.add(match.lower())
     
     return found_tables
 

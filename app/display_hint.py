@@ -122,27 +122,39 @@ QUERY_DISPLAY_TYPE_MAP = {
     "show incidents with compensation": "table",
     "show vip incidents": "table",
     "show housekeeping incidents": "table",
+    "show all completed incidents": "table",
+    "show incidents with actual cost over 1000": "table",
     
     # === METRIC DISPLAY (4 questions - single KPI values) ===
     "how many total incidents": "metric",
     "what is the total cost": "metric",
+    "what is the total actual cost": "metric",
+    "how many high severity incidents": "metric",
     "how many vip incidents": "metric",
     "what is the average cost": "metric",
     
     # === BAR CHART DISPLAY (4 questions - category comparisons) ===
     "count by category": "bar",
     "count by department": "bar",
+    "count by severity": "bar",
+    "count by location": "bar",
     "cost by severity": "bar",
     "count by property": "bar",
     
     # === PIE CHART DISPLAY (4 questions - distribution breakdown) ===
     "status distribution": "pie",
+    "severity distribution": "pie",
     "severity breakdown": "pie",
+    "vip vs non-vip": "pie",
     "vip percentage": "pie",
+    "category distribution": "pie",
     "temperament distribution": "pie",
     
     # === LINE CHART DISPLAY (4 questions - time series trends) ===
     "incident trend last 30 days": "line",
+    "cost trend last 30 days": "line",
+    "high severity trend last 7 days": "line",
+    "completion trend last 30 days": "line",
     "daily incident count": "line",
     "completion trend": "line",
     "incidents per day": "line",
