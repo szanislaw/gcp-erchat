@@ -180,7 +180,9 @@ Wrong examples (cause errors):
 ✗ WHERE ... INTERVAL -14 DAY ... (INTERVAL keyword not supported!)
 ✗ date_trunc('month', snapshotdate) (VARCHAR parameter fails!)
 
-Generate a SQL query for this request:
-{normalized_text}
+Generate an Athena SQL query to answer the following question: "{normalized_text}"
 
-Return only the SQL query:""".strip()
+Important: 
+1. Use PrestoSQL / Athena syntax.
+2. Return ONLY the SQL query.
+""".strip()

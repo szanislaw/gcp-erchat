@@ -99,42 +99,65 @@ def get_display_type_from_question(question: str) -> Optional[str]:
 # Hardcoded query-to-display-type mapping for GM Demo Questions
 # Maps natural language queries to their desired display types
 # This mapping is checked FIRST before pattern matching or SQL analysis
+#
+# PHILOSOPHY: Match display type to data structure:
+# - table: Detailed rows (SELECT * queries)
+# - bar: Category comparisons (GROUP BY with aggregation, 5-50 categories)
+# - pie: Distribution breakdown (GROUP BY with aggregation, 2-10 categories)
+# - line: Time series trends (GROUP BY date with aggregation)
+# - metric: Single value (COUNT, SUM, AVG without GROUP BY)
 QUERY_DISPLAY_TYPE_MAP = {
-    # === OPERATIONAL OVERVIEW (5 questions) ===
+    # === DETAILED QUERIES (Table Display) ===
+    # These return SELECT * with WHERE filters - best shown as tables
     "show me all incidents": "table",
     "show me all pending incidents": "table",
-    "show me all service quality incidents": "bar",
-    "show incidents from last 7 days": "line",
-    "show recent incidents with medium severity": "pie",
-    
-    # === GUEST EXPERIENCE (4 questions) ===
-    "show me incidents for food and beverage category": "bar",
+    "show me all service quality incidents": "table",
+    "show incidents from last 7 days": "table",
+    "show recent incidents with medium severity": "table",
+    "show me incidents for food and beverage category": "table",
     "show high severity incidents that are still pending": "table",
-    
-    # === FINANCIAL IMPACT (3 questions) ===
-    "show me incidents with actual cost greater than 100": "bar",
+    "show me incidents with actual cost greater than 100": "table",
     "show me all incidents sorted by actual cost": "table",
-    "show me completed incidents": "pie",
+    "show me completed incidents": "table",
+    "show me incidents ordered by severity": "table",
     
-    # === PERFORMANCE ANALYTICS (4 questions) ===
-    "show me incidents ordered by severity": "bar",
+    # === METRIC QUERIES (Single KPI Value) ===
+    # These return COUNT(*) or SUM - best shown as large numbers/KPI cards
+    "how many incidents are there": "metric",
+    "how many incidents do we have": "metric",
+    "how many high severity incidents": "metric",
+    "how many pending incidents": "metric",
+    "what is the total incident count": "metric",
     
-    # Note: Some questions appear in multiple categories with the same display type
-    # - "Show incidents from last 7 days" → line (already mapped above)
-    # - "Show me incidents for Food and Beverage category" → appears 3 times, but:
-    #     * Questions 6 & 15 use "bar" (dominant mapping)
-    #     * Question 7 uses "table" (exception - will follow dominant)
-    # - "Show recent incidents with medium severity" → pie (already mapped above)
-    # - "Show me completed incidents" → appears twice:
-    #     * Question 12: pie
-    #     * Question 17: bar (exception - resolved by using first mapping)
+    # === BAR CHART QUERIES (Category Comparisons) ===
+    # These use GROUP BY to compare categories - best shown as bar charts
+    "count incidents by category": "bar",
+    "show incidents by category": "bar",
+    "incidents by department": "bar",
+    "how many incidents per category": "bar",
+    "count incidents by severity": "bar",
+    "show incident breakdown by category": "bar",
+    "which categories have the most incidents": "bar",
     
-    # === STRATEGIC INSIGHTS (4 questions) ===
-    # "show me completed incidents" already mapped above as "pie"
-    # "show me all pending incidents" already mapped above as "table"
-    # "show me incidents ordered by severity" already mapped above as "bar"
-    # "show me all incidents sorted by actual cost" already mapped above as "table"
+    # === PIE CHART QUERIES (Distribution) ===
+    # These use GROUP BY with limited categories - best shown as pie charts
+    "incident breakdown by status": "pie",
+    "show status distribution": "pie",
+    "count incidents by status": "pie",
+    "incident distribution by severity": "pie",
+    "show severity breakdown": "pie",
+    "percentage of incidents by status": "pie",
+    
+    # === LINE CHART QUERIES (Time Series) ===
+    # These use GROUP BY date with aggregation - best shown as line charts
+    "incidents per day last 7 days": "line",
+    "daily incident count last week": "line",
+    "incident trend over last 30 days": "line",
+    "show daily incident trend": "line",
+    "incidents per day this month": "line",
+    "daily incident count": "line",
 }
+
 
 
 def get_display_type(sql: str, execution_data: Dict[str, Any], query_text: str = None) -> str:
