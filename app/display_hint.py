@@ -96,7 +96,7 @@ def get_display_type_from_question(question: str) -> Optional[str]:
     # No pattern matched - return None to use auto-detection
     return None
 
-# Hardcoded query-to-display-type mapping for GM Demo Questions
+# Hardcoded query-to-display-type mapping for Demo Questions
 # Maps natural language queries to their desired display types based on ACTUAL table columns
 # This mapping is checked FIRST before pattern matching or SQL analysis
 #
@@ -114,62 +114,38 @@ def get_display_type_from_question(question: str) -> Optional[str]:
 # - pie: Distribution breakdown (GROUP BY with aggregation, 2-10 categories)
 # - line: Time series trends (GROUP BY date with aggregation)
 # - metric: Single value (COUNT, SUM, AVG without GROUP BY)
+#
+# DEMO SET: 20 questions - 4 of each display type
 QUERY_DISPLAY_TYPE_MAP = {
-    # === TABLE DISPLAY (Detailed rows with multiple columns) ===
-    # These return SELECT * or multiple specific columns - best shown as tables
-    "show me all incidents with their category and severity": "table",
-    "list all incidents with department and status": "table",
-    "show me incidents with compensation text and actual cost": "table",
-    "display all vip incidents with location and description": "table",
-    "show incidents from housekeeping department": "table",
-    "list all pending incidents with recovery number": "table",
-    "show me all incidents from the peninsula property": "table",
-    "display incidents with potential cost over 100": "table",
+    # === TABLE DISPLAY (4 questions - detailed rows) ===
     "show me all high severity incidents with their location": "table",
-    "list incidents by profile name and temperament": "table",
+    "list all incidents with department and compensation details": "table",
+    "display vip incidents with their category and status": "table",
+    "show incidents from housekeeping with actual cost": "table",
     
-    # === METRIC DISPLAY (Single KPI value) ===
-    # COUNT(*), SUM(), AVG() without GROUP BY - best shown as large metric cards
+    # === METRIC DISPLAY (4 questions - single KPI values) ===
     "what is the total incident count": "metric",
-    "how many incidents are there in the system": "metric",
-    "what is the total potential cost of all incidents": "metric",
-    "what is the average actual cost per incident": "metric",
-    "how many vip incidents do we have": "metric",
-    "what is the total compensation amount": "metric",
-    "count all incidents with severity high": "metric",
-    "how many completed incidents are there": "metric",
+    "what is the total actual cost of all incidents": "metric",
+    "how many vip incidents are there": "metric",
+    "what is the average potential cost per incident": "metric",
     
-    # === BAR CHART DISPLAY (Category comparisons) ===
-    # GROUP BY category_name, department_name, severity_name, etc. with COUNT/SUM
+    # === BAR CHART DISPLAY (4 questions - category comparisons) ===
     "show incident count by category name": "bar",
     "count incidents by department name": "bar",
-    "show incidents grouped by severity name": "bar",
-    "display incident breakdown by location name": "bar",
+    "display actual cost by severity name": "bar",
     "show incident count by property name": "bar",
-    "count incidents by profile name": "bar",
-    "show actual cost by department name": "bar",
-    "display potential cost by category name": "bar",
-    "show average cost by severity name": "bar",
-    "count incidents by status name": "bar",
     
-    # === PIE CHART DISPLAY (Distribution with limited categories) ===
-    # GROUP BY with 2-10 categories showing distribution percentages
+    # === PIE CHART DISPLAY (4 questions - distribution breakdown) ===
     "show status name distribution": "pie",
     "display severity name breakdown": "pie",
-    "show vip vs non-vip incident distribution": "pie",
-    "incident percentage by status name": "pie",
-    "show completed vs pending vs cancelled breakdown": "pie",
+    "show vip incident percentage": "pie",
     "display incident distribution by temperament text": "pie",
     
-    # === LINE CHART DISPLAY (Time series trends) ===
-    # GROUP BY date, created_date, completed_date with aggregation over time
-    "show incident trend by created date": "line",
+    # === LINE CHART DISPLAY (4 questions - time series trends) ===
+    "show incident trend by created date for last 30 days": "line",
     "display daily incident count from snapshotdate": "line",
-    "show incident completion trend by completed date": "line",
-    "count incidents per day for last 30 days": "line",
-    "display incident time series by date partition": "line",
-    "show weekly incident count trend": "line",
-    "display monthly incident count by created date": "line",
+    "show completion trend by completed date": "line",
+    "count incidents per day by incident time": "line",
 }
 
 
