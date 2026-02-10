@@ -17,7 +17,6 @@ from app.query_suggestions import generate_query_suggestions, get_schema_summary
 from app.input_validator import validate_nlq_input, ValidationResult
 from app.rate_limiter import get_rate_limiter, RateLimiter, RateLimitConfig
 from app.column_formatter import format_execution_data
-from app.hardcoded_queries import get_hardcoded_query, inject_property_filter
 import json
 import os
 import time
@@ -169,57 +168,28 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             target_cfg = ATHENA_TARGETS.get(athena_target, {})
             allowed_tables = target_cfg.get("tables", ["incident_combine"])
 
-        # Get event loop for async operations
+        # Step 4: Build Prompt
+        prompt = build_prompt(
+            text=sanitized_text,
+            context=req.context,
+            sql=req.sql,
+            athena_target=athena_target,
+            property_uuid=req.context.property_uuid,
+            user_uuid=req.context.user_uuid
+        )
+
+        # Step 5: Run Model Inference (non-blocking)
         loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            _executor,
+            _run_model_inference,
+            prompt,
+            req.model.max_tokens
+        )
 
-        # Step 3.5: Check for hardcoded query match (bypasses ML model)
-        hardcoded_result = get_hardcoded_query(sanitized_text)
-        
-        if hardcoded_result:
-            # Found hardcoded query - use it instead of ML model
-            logger.info(f"Using hardcoded query for: '{sanitized_text}'")
-            sql = hardcoded_result["sql"]
-            
-            # Inject property UUID filter if provided
-            if req.context.property_uuid:
-                property_uuids = [uuid.strip() for uuid in req.context.property_uuid.split(",") if uuid.strip()]
-                sql = inject_property_filter(sql, property_uuids)
-                logger.info(f"Injected property filter for {len(property_uuids)} properties")
-            
-            result = {
-                "query": sql,
-                "confidence": hardcoded_result["confidence"],
-                "latency_ms": 0,  # No model inference
-                "from_cache": False,
-                "explanation": hardcoded_result["explanation"]
-            }
-            
-            # Skip to validation step
-        else:
-            # No hardcoded match - use ML model
-            logger.info(f"No hardcoded match, using ML model for: '{sanitized_text}'")
-            
-            # Step 4: Build Prompt
-            prompt = build_prompt(
-                text=sanitized_text,
-                context=req.context,
-                sql=req.sql,
-                athena_target=athena_target,
-                property_uuid=req.context.property_uuid,
-                user_uuid=req.context.user_uuid
-            )
-
-            # Step 5: Run Model Inference (non-blocking)
-            result = await loop.run_in_executor(
-                _executor,
-                _run_model_inference,
-                prompt,
-                req.model.max_tokens
-            )
-
-            # Step 5.5: Fix hallucinated table names before validation
-            from app.sqlcoder import fix_table_names
-            result["query"] = fix_table_names(result["query"], allowed_tables)
+        # Step 5.5: Fix hallucinated table names before validation
+        from app.sqlcoder import fix_table_names
+        result["query"] = fix_table_names(result["query"], allowed_tables)
 
         # Step 6: Validate Generated SQL
         sql = validate_sql(
