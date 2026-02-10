@@ -230,6 +230,12 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
                 display_type = "table"
                 logger.info(f"Using default display type: {display_type}")
 
+        # Step 9: Format data for charts if needed
+        chart_data = None
+        if executed and execution_data and display_type in ["bar", "pie", "line", "metric"]:
+            chart_data = format_for_chart(execution_data, display_type)
+            logger.info(f"Chart data formatted for {display_type}: {chart_data is not None}")
+
         total_latency_ms = int((time.time() - start_time) * 1000)
 
         response = {
@@ -244,7 +250,8 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
                 "data": execution_data
             },
             "display": {
-                "type": display_type
+                "type": display_type,
+                "chart_data": chart_data
             },
             "explanation": result["explanation"],
             "trace": {

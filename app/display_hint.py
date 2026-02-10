@@ -86,8 +86,41 @@ def get_display_type_from_question(question: str) -> Optional[str]:
     # No pattern matched - return None to use auto-detection
     return None
 
+# Hardcoded query-to-display-type mapping for GM Demo Questions
+# Maps natural language queries to their desired display types
+QUERY_DISPLAY_TYPE_MAP = {
+    # OPERATIONAL OVERVIEW
+    "how many incidents do we have?": "metric",
+    "show me all pending incidents": "table",
+    "count incidents by category": "bar",
+    "show incidents from last 7 days": "table",
+    "how many high severity incidents are there?": "metric",
+    
+    # GUEST EXPERIENCE
+    "show me incidents for food and beverage category": "table",
+    "what are the most common incident categories?": "bar",
+    "show high severity incidents that are still pending": "table",
+    "show me all incidents at location room 1018": "table",
+    
+    # FINANCIAL IMPACT
+    "what is the total actual cost of all incidents?": "metric",
+    "show me the incidents with highest actual cost": "table",
+    "what is the average actual cost by category?": "bar",
+    
+    # PERFORMANCE ANALYTICS
+    "which category has the most incidents?": "bar",
+    "show incident breakdown by severity": "pie",
+    "show recent incidents with medium severity": "table",
+    
+    # STRATEGIC INSIGHTS
+    "how many incidents were completed?": "metric",
+    "how many incidents does each property have?": "bar",
+    "show me incidents ordered by severity": "table",
+    "count incidents by status": "pie",
+}
 
-def get_display_type(sql: str, execution_data: Dict[str, Any]) -> str:
+
+def get_display_type(sql: str, execution_data: Dict[str, Any], query_text: str = None) -> str:
     """
     Determine the recommended display type for query results.
     Uses hardcoded heuristics based on SQL query patterns and result structure.
@@ -102,10 +135,17 @@ def get_display_type(sql: str, execution_data: Dict[str, Any]) -> str:
     Args:
         sql: The SQL query that was executed
         execution_data: The result data structure from Athena
+        query_text: The original natural language query (optional, for hardcoded mappings)
         
     Returns:
         Display type as string
     """
+    # Check hardcoded query mapping first (for GM demo questions)
+    if query_text:
+        normalized_query = query_text.lower().strip()
+        if normalized_query in QUERY_DISPLAY_TYPE_MAP:
+            return QUERY_DISPLAY_TYPE_MAP[normalized_query]
+    
     if not execution_data or not execution_data.get("rows"):
         return "table"
     
