@@ -16,6 +16,7 @@ from app.chart_formatter import format_for_chart
 from app.query_suggestions import generate_query_suggestions, get_schema_summary
 from app.input_validator import validate_nlq_input, ValidationResult
 from app.rate_limiter import get_rate_limiter, RateLimiter, RateLimitConfig
+from app.column_formatter import format_execution_data
 import json
 import os
 import time
@@ -202,7 +203,7 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
         executed = False
 
         if not req.execution.dry_run:
-            execution_data = await loop.run_in_executor(
+            raw_data = await loop.run_in_executor(
                 _executor,
                 lambda: execute_query(
                     sql=sql,
@@ -210,6 +211,8 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
                     max_rows=req.execution.max_rows
                 )
             )
+            # Format column names for better readability
+            execution_data = format_execution_data(raw_data)
             executed = True
 
         # Step 8: Determine Display Type

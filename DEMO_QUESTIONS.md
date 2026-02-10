@@ -163,19 +163,19 @@ Natural Language Query
 
 ## TABLE Display (4 questions)
 
-### 1. Show me all high severity incidents with their location
+### 1. Show high severity incidents
 **Purpose:** Browse critical incidents with location details  
 **Expected Columns:** severity_name, location_name, category_name, status_name, description
 
-### 2. List all incidents with department and compensation details
+### 2. Show incidents with compensation
 **Purpose:** Review incidents requiring compensation by department  
 **Expected Columns:** department_name, compensation_text, actual_cost, status_name, category_name
 
-### 3. Display vip incidents with their category and status
+### 3. Show vip incidents
 **Purpose:** Track VIP guest incidents for priority handling  
 **Expected Columns:** vip, category_name, status_name, severity_name, location_name
 
-### 4. Show incidents from housekeeping with actual cost
+### 4. Show housekeeping incidents
 **Purpose:** Review housekeeping department incidents and costs  
 **Expected Columns:** department_name, category_name, actual_cost, status_name, description
 
@@ -183,19 +183,19 @@ Natural Language Query
 
 ## METRIC Display (4 questions)
 
-### 5. What is the total incident count
+### 5. How many total incidents
 **Purpose:** Overall incident volume KPI  
 **Expected Result:** Single COUNT(*) value
 
-### 6. What is the total actual cost of all incidents
+### 6. What is the total cost
 **Purpose:** Total financial impact of all incidents  
 **Expected Result:** Single SUM(actual_cost) value
 
-### 7. How many vip incidents are there
+### 7. How many vip incidents
 **Purpose:** VIP incident count for priority tracking  
 **Expected Result:** Single COUNT(*) WHERE vip = 'Yes'
 
-### 8. What is the average potential cost per incident
+### 8. What is the average cost
 **Purpose:** Average estimated cost for budgeting  
 **Expected Result:** Single AVG(potential_cost) value
 
@@ -203,19 +203,19 @@ Natural Language Query
 
 ## BAR Chart Display (4 questions)
 
-### 9. Show incident count by category name
+### 9. Count by category
 **Purpose:** Compare incident volume across categories  
 **Expected Result:** category_name with COUNT(*) grouped
 
-### 10. Count incidents by department name
+### 10. Count by department
 **Purpose:** Compare which departments have most incidents  
 **Expected Result:** department_name with COUNT(*) grouped
 
-### 11. Display actual cost by severity name
+### 11. Cost by severity
 **Purpose:** Compare total costs across severity levels  
 **Expected Result:** severity_name with SUM(actual_cost) grouped
 
-### 12. Show incident count by property name
+### 12. Count by property
 **Purpose:** Compare incident volume across properties  
 **Expected Result:** property_name with COUNT(*) grouped
 
@@ -223,19 +223,19 @@ Natural Language Query
 
 ## PIE Chart Display (4 questions)
 
-### 13. Show status name distribution
+### 13. Status distribution
 **Purpose:** See breakdown of pending/completed/cancelled incidents  
 **Expected Result:** status_name with COUNT(*) grouped (2-5 categories)
 
-### 14. Display severity name breakdown
+### 14. Severity breakdown
 **Purpose:** Distribution of high/medium/low severity incidents  
 **Expected Result:** severity_name with COUNT(*) grouped (2-5 categories)
 
-### 15. Show vip incident percentage
+### 15. Vip percentage
 **Purpose:** VIP vs non-VIP incident distribution  
 **Expected Result:** vip with COUNT(*) grouped (2 categories)
 
-### 16. Display incident distribution by temperament text
+### 16. Temperament distribution
 **Purpose:** Guest temperament distribution (angry/calm/neutral)  
 **Expected Result:** temperament_text with COUNT(*) grouped
 
@@ -243,19 +243,19 @@ Natural Language Query
 
 ## LINE Chart Display (4 questions)
 
-### 17. Show incident trend by created date for last 30 days
+### 17. Incident trend last 30 days
 **Purpose:** Daily incident creation trend over past month  
 **Expected Result:** date with COUNT(*) grouped by day
 
-### 18. Display daily incident count from snapshotdate
+### 18. Daily incident count
 **Purpose:** Daily snapshot of incident counts  
 **Expected Result:** snapshotdate with COUNT(*) grouped by date
 
-### 19. Show completion trend by completed date
+### 19. Completion trend
 **Purpose:** Daily incident resolution trend  
 **Expected Result:** completed_date with COUNT(*) grouped by day
 
-### 20. Count incidents per day by incident time
+### 20. Incidents per day
 **Purpose:** When incidents actually occurred (time series)  
 **Expected Result:** incident_time with COUNT(*) grouped by day
 
@@ -267,7 +267,7 @@ Natural Language Query
 curl -X POST http://localhost:8000/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "What is the total incident count",
+    "text": "How many total incidents",
     "context": {
         "language": "en",
         "property_uuid": "",
@@ -280,11 +280,11 @@ curl -X POST http://localhost:8000/nlq/execute \
 
 ## Demo Flow Recommendation
 
-1. Start with **METRIC** (#5) - Show total incident count as opening KPI
-2. Show **TABLE** (#1) - Browse specific high severity incidents
-3. Show **BAR** (#9) - Category comparison for trends
-4. Show **PIE** (#13) - Status distribution for progress tracking
-5. Show **LINE** (#17) - Time series trend for patterns
+1. Start with **METRIC** (#5) - "How many total incidents" - Opening KPI
+2. Show **TABLE** (#1) - "Show high severity incidents" - Browse critical records
+3. Show **BAR** (#9) - "Count by category" - Category comparison
+4. Show **PIE** (#13) - "Status distribution" - Progress tracking
+5. Show **LINE** (#17) - "Incident trend last 30 days" - Time series pattern
 6. Continue through remaining questions alternating display types
 
 This creates a narrative: KPI overview → detailed records → comparisons → distributions → trends

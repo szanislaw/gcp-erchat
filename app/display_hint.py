@@ -118,34 +118,34 @@ def get_display_type_from_question(question: str) -> Optional[str]:
 # DEMO SET: 20 questions - 4 of each display type
 QUERY_DISPLAY_TYPE_MAP = {
     # === TABLE DISPLAY (4 questions - detailed rows) ===
-    "show me all high severity incidents with their location": "table",
-    "list all incidents with department and compensation details": "table",
-    "display vip incidents with their category and status": "table",
-    "show incidents from housekeeping with actual cost": "table",
+    "show high severity incidents": "table",
+    "show incidents with compensation": "table",
+    "show vip incidents": "table",
+    "show housekeeping incidents": "table",
     
     # === METRIC DISPLAY (4 questions - single KPI values) ===
-    "what is the total incident count": "metric",
-    "what is the total actual cost of all incidents": "metric",
-    "how many vip incidents are there": "metric",
-    "what is the average potential cost per incident": "metric",
+    "how many total incidents": "metric",
+    "what is the total cost": "metric",
+    "how many vip incidents": "metric",
+    "what is the average cost": "metric",
     
     # === BAR CHART DISPLAY (4 questions - category comparisons) ===
-    "show incident count by category name": "bar",
-    "count incidents by department name": "bar",
-    "display actual cost by severity name": "bar",
-    "show incident count by property name": "bar",
+    "count by category": "bar",
+    "count by department": "bar",
+    "cost by severity": "bar",
+    "count by property": "bar",
     
     # === PIE CHART DISPLAY (4 questions - distribution breakdown) ===
-    "show status name distribution": "pie",
-    "display severity name breakdown": "pie",
-    "show vip incident percentage": "pie",
-    "display incident distribution by temperament text": "pie",
+    "status distribution": "pie",
+    "severity breakdown": "pie",
+    "vip percentage": "pie",
+    "temperament distribution": "pie",
     
     # === LINE CHART DISPLAY (4 questions - time series trends) ===
-    "show incident trend by created date for last 30 days": "line",
-    "display daily incident count from snapshotdate": "line",
-    "show completion trend by completed date": "line",
-    "count incidents per day by incident time": "line",
+    "incident trend last 30 days": "line",
+    "daily incident count": "line",
+    "completion trend": "line",
+    "incidents per day": "line",
 }
 
 
