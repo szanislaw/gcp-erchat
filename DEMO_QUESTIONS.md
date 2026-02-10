@@ -150,14 +150,14 @@ Natural Language Query
 ```
 
 ## Overview
-20 demonstration questions showcasing all 5 display types using the `incident_combine` table from Athena.
+40 demonstration questions showcasing all 5 display types using the `incident_combine` table from Athena.
 
 **Display Type Distribution:**
-- 4 TABLE displays (detailed records)
-- 4 METRIC displays (KPI values)
-- 4 BAR charts (category comparisons)
-- 4 PIE charts (distribution breakdowns)
-- 4 LINE charts (time series trends)
+- 8 TABLE displays (detailed records)
+- 8 METRIC displays (KPI values)
+- 8 BAR charts (category comparisons)
+- 8 PIE charts (distribution breakdowns)
+- 8 LINE charts (time series trends)
 
 ---
 
@@ -179,6 +179,22 @@ Natural Language Query
 **Purpose:** Review housekeeping department incidents and costs  
 **Expected Columns:** department_name, category_name, actual_cost, status_name, description
 
+### 5. Show pending incidents with location
+**Purpose:** Track incomplete incidents by location  
+**Expected Columns:** status_name, location_name, category_name, created_date, description
+
+### 6. Show incidents by profile name
+**Purpose:** Review incidents grouped by guest profile  
+**Expected Columns:** profile_name, category_name, severity_name, status_name, incident_time
+
+### 7. Show cancelled incidents
+**Purpose:** Audit cancelled incidents with reasons  
+**Expected Columns:** status_name, category_name, compensation_text, cancelled_date, description
+
+### 8. Show expensive incidents
+**Purpose:** Review high-cost incidents for budget analysis  
+**Expected Columns:** actual_cost, category_name, severity_name, department_name, description
+
 ---
 
 ## METRIC Display (4 questions)
@@ -198,6 +214,22 @@ Natural Language Query
 ### 8. What is the average cost
 **Purpose:** Average estimated cost for budgeting  
 **Expected Result:** Single AVG(potential_cost) value
+
+### 9. How many pending incidents
+**Purpose:** Count of incomplete incidents for workload tracking  
+**Expected Result:** Single COUNT(*) WHERE status_name = 'Pending'
+
+### 10. How many high severity incidents
+**Purpose:** Critical incident count for priority attention  
+**Expected Result:** Single COUNT(*) WHERE severity_name = 'High'
+
+### 11. What is the average actual cost
+**Purpose:** Actual average spending per incident  
+**Expected Result:** Single AVG(actual_cost) value
+
+### 12. How many completed incidents
+**Purpose:** Completed incident count for productivity tracking  
+**Expected Result:** Single COUNT(*) WHERE status_name = 'Completed'
 
 ---
 
@@ -219,6 +251,22 @@ Natural Language Query
 **Purpose:** Compare incident volume across properties  
 **Expected Result:** property_name with COUNT(*) grouped
 
+### 13. Count by location
+**Purpose:** Compare incidents across different locations  
+**Expected Result:** location_name with COUNT(*) grouped
+
+### 14. Count by status
+**Purpose:** Compare pending vs completed vs cancelled  
+**Expected Result:** status_name with COUNT(*) grouped
+
+### 15. Average cost by category
+**Purpose:** Compare average spending across categories  
+**Expected Result:** category_name with AVG(actual_cost) grouped
+
+### 16. Count by profile
+**Purpose:** Compare incidents across guest profiles  
+**Expected Result:** profile_name with COUNT(*) grouped
+
 ---
 
 ## PIE Chart Display (4 questions)
@@ -239,25 +287,57 @@ Natural Language Query
 **Purpose:** Guest temperament distribution (angry/calm/neutral)  
 **Expected Result:** temperament_text with COUNT(*) grouped
 
+### 17. Department breakdown
+**Purpose:** Incident distribution by department  
+**Expected Result:** department_name with COUNT(*) grouped (5-10 categories)
+
+### 18. Category breakdown
+**Purpose:** Incident distribution by category  
+**Expected Result:** category_name with COUNT(*) grouped (5-10 categories)
+
+### 19. Compensation distribution
+**Purpose:** Incidents requiring vs not requiring compensation  
+**Expected Result:** compensation_text grouped (2 categories: with/without)
+
+### 20. High severity distribution
+**Purpose:** Distribution of high severity by category  
+**Expected Result:** category_name with COUNT(*) WHERE severity = 'High'
+
 ---
 
-## LINE Chart Display (4 questions)
+## LINE Chart Display (8 questions)
 
-### 17. Incident trend last 30 days
+### 21. Incident trend last 30 days
 **Purpose:** Daily incident creation trend over past month  
 **Expected Result:** date with COUNT(*) grouped by day
 
-### 18. Daily incident count
+### 22. Daily incident count
 **Purpose:** Daily snapshot of incident counts  
 **Expected Result:** snapshotdate with COUNT(*) grouped by date
 
-### 19. Completion trend
+### 23. Completion trend
 **Purpose:** Daily incident resolution trend  
 **Expected Result:** completed_date with COUNT(*) grouped by day
 
-### 20. Incidents per day
+### 24. Incidents per day
 **Purpose:** When incidents actually occurred (time series)  
 **Expected Result:** incident_time with COUNT(*) grouped by day
+
+### 25. Weekly incident trend
+**Purpose:** Weekly aggregation of incident counts  
+**Expected Result:** week with COUNT(*) grouped by week
+
+### 26. High severity trend
+**Purpose:** Track high severity incidents over time  
+**Expected Result:** date with COUNT(*) WHERE severity = 'High' grouped by day
+
+### 27. Cost trend over time
+**Purpose:** Track incident costs over time  
+**Expected Result:** date with SUM(actual_cost) grouped by day
+
+### 28. Vip incident trend
+**Purpose:** Track VIP incidents over time  
+**Expected Result:** date with COUNT(*) WHERE vip = 'Yes' grouped by day
 
 ---
 
@@ -280,11 +360,26 @@ curl -X POST http://localhost:8000/nlq/execute \
 
 ## Demo Flow Recommendation
 
-1. Start with **METRIC** (#5) - "How many total incidents" - Opening KPI
-2. Show **TABLE** (#1) - "Show high severity incidents" - Browse critical records
-3. Show **BAR** (#9) - "Count by category" - Category comparison
-4. Show **PIE** (#13) - "Status distribution" - Progress tracking
-5. Show **LINE** (#17) - "Incident trend last 30 days" - Time series pattern
-6. Continue through remaining questions alternating display types
+**Quick Demo (5 questions):**
+1. **METRIC** (#5) - "How many total incidents" - Opening KPI
+2. **TABLE** (#1) - "Show high severity incidents" - Browse critical records
+3. **BAR** (#9) - "Count by category" - Category comparison
+4. **PIE** (#13) - "Status distribution" - Progress tracking
+5. **LINE** (#21) - "Incident trend last 30 days" - Time series pattern
+
+**Extended Demo (10 questions):**
+1. **METRIC** (#5) - Total incidents KPI
+2. **METRIC** (#10) - High severity count
+3. **TABLE** (#1) - High severity details
+4. **TABLE** (#5) - Pending incidents by location
+5. **BAR** (#9) - Count by category
+6. **BAR** (#14) - Count by status
+7. **PIE** (#13) - Status distribution
+8. **PIE** (#17) - Department breakdown
+9. **LINE** (#21) - Incident trend last 30 days
+10. **LINE** (#27) - Cost trend over time
+
+**Full Demo (40 questions):**
+Cycle through all questions alternating display types to showcase comprehensive capabilities.
 
 This creates a narrative: KPI overview → detailed records → comparisons → distributions → trends

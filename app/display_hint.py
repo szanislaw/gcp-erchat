@@ -115,37 +115,57 @@ def get_display_type_from_question(question: str) -> Optional[str]:
 # - line: Time series trends (GROUP BY date with aggregation)
 # - metric: Single value (COUNT, SUM, AVG without GROUP BY)
 #
-# DEMO SET: 20 questions - 4 of each display type
+# DEMO SET: 40 questions - 8 of each display type
 QUERY_DISPLAY_TYPE_MAP = {
-    # === TABLE DISPLAY (4 questions - detailed rows) ===
+    # === TABLE DISPLAY (8 questions - detailed rows) ===
     "show high severity incidents": "table",
     "show incidents with compensation": "table",
     "show vip incidents": "table",
     "show housekeeping incidents": "table",
+    "show pending incidents with location": "table",
+    "show incidents by profile name": "table",
+    "show cancelled incidents": "table",
+    "show expensive incidents": "table",
     
-    # === METRIC DISPLAY (4 questions - single KPI values) ===
+    # === METRIC DISPLAY (8 questions - single KPI values) ===
     "how many total incidents": "metric",
     "what is the total cost": "metric",
     "how many vip incidents": "metric",
     "what is the average cost": "metric",
+    "how many pending incidents": "metric",
+    "how many high severity incidents": "metric",
+    "what is the average actual cost": "metric",
+    "how many completed incidents": "metric",
     
-    # === BAR CHART DISPLAY (4 questions - category comparisons) ===
+    # === BAR CHART DISPLAY (8 questions - category comparisons) ===
     "count by category": "bar",
     "count by department": "bar",
     "cost by severity": "bar",
     "count by property": "bar",
+    "count by location": "bar",
+    "count by status": "bar",
+    "average cost by category": "bar",
+    "count by profile": "bar",
     
-    # === PIE CHART DISPLAY (4 questions - distribution breakdown) ===
+    # === PIE CHART DISPLAY (8 questions - distribution breakdown) ===
     "status distribution": "pie",
     "severity breakdown": "pie",
     "vip percentage": "pie",
     "temperament distribution": "pie",
+    "department breakdown": "pie",
+    "category breakdown": "pie",
+    "compensation distribution": "pie",
+    "high severity distribution": "pie",
     
-    # === LINE CHART DISPLAY (4 questions - time series trends) ===
+    # === LINE CHART DISPLAY (8 questions - time series trends) ===
     "incident trend last 30 days": "line",
     "daily incident count": "line",
     "completion trend": "line",
     "incidents per day": "line",
+    "weekly incident trend": "line",
+    "high severity trend": "line",
+    "cost trend over time": "line",
+    "vip incident trend": "line",
 }
 
 
