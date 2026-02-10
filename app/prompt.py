@@ -83,22 +83,29 @@ DETECTED ENTITIES (use these exact values):
     else:
         logger.warning("Could not detect property UUID column from schema")
 
-    # Optional property filtering (not mandatory)
+    # Build property restriction based on authorized property UUIDs
     property_restriction = ""
     if property_uuids and property_col:
         uuid_in_list = ", ".join(f"'{u}'" for u in property_uuids)
         property_restriction = f"""
-PROPERTY FILTERING (Optional):
-- Property UUIDs provided: {uuid_in_list}
-- To filter by property, add: WHERE {property_col} IN ({uuid_in_list})
-- Only use this filter if it makes sense for the query context
+⚠️ CRITICAL: USER ACCESS RESTRICTION ⚠️
+- This user can ONLY access data for {property_col} values: {uuid_in_list}
+- You MUST add: WHERE {property_col} IN ({uuid_in_list})
+- If query already has WHERE, use AND: WHERE ... AND {property_col} IN ({uuid_in_list})
+- This is MANDATORY for all queries - no exceptions
+- Do NOT access data from other properties
 """
+    elif property_uuids and not property_col:
+        # Column not found in schema - skip UUID filtering but log warning
+        logger.warning(f"Property UUIDs provided ({property_uuids}) but no property UUID column found in schema - skipping UUID filtering")
     elif property_name:
         property_restriction = f"""
-PROPERTY FILTERING (Optional):
-- Property name provided: {property_name}
-- To filter by property, add: WHERE property_name = '{property_name}'
-- Only use this filter if it makes sense for the query context
+⚠️ CRITICAL: USER ACCESS RESTRICTION ⚠️
+- This user can ONLY access data for: {property_name}
+- You MUST add: WHERE property_name = '{property_name}'
+- If query already has WHERE, use AND: WHERE ... AND property_name = '{property_name}'
+- This is MANDATORY for all queries - no exceptions
+- Do NOT access data from other properties
 """
 
     return f"""You are an expert SQL generator for AWS Athena (PrestoSQL).
@@ -119,23 +126,6 @@ STRICT RULES:
 - Use LOWERCASE for categorical values (severity_name, status_name, etc.)
 - Use EXACT CASE for property names and location names (e.g., 'The Peninsula Manila')
 - Use LOWER() function for case-insensitive matching when needed
-
-COLUMN SELECTION RULES:
-⚠️ IMPORTANT: Select ONLY the columns mentioned in the user's question
-- For "show me X with Y and Z" → SELECT Y, Z, X FROM ... (only relevant columns)
-- For "list incidents with department and status" → SELECT department_name, status_name, ... 
-- For "display vip incidents with category" → SELECT vip, category_name, ...
-- For "show high severity with location" → SELECT severity_name, location_name, ...
-- Add WHERE clause columns to SELECT if they provide context
-- AVOID SELECT * unless user explicitly asks for "all columns" or "everything about"
-- For aggregations, SELECT only the grouped column and aggregated value
-- For detailed views, include: primary identifiers (recovery_no), key columns (category_name, status_name), and specifically mentioned columns
-
-EXAMPLES:
-✓ "show high severity incidents with location" → SELECT severity_name, location_name, category_name, status_name, recovery_no FROM incident_combine WHERE severity_name = 'high'
-✓ "list incidents with department and cost" → SELECT department_name, actual_cost, category_name, status_name, recovery_no FROM incident_combine
-✓ "display vip incidents with category and status" → SELECT vip, category_name, status_name, severity_name, recovery_no FROM incident_combine WHERE vip = 'Yes'
-✗ "show high severity incidents" → SELECT * FROM incident_combine WHERE severity_name = 'high' (too broad!)
 {property_restriction}
 DATE FILTERING RULES (ONLY WHEN USER ASKS ABOUT DATES/TIME):
 ⚠️ IMPORTANT: Only add date filters if the user question mentions dates, time periods, or temporal context
