@@ -11,7 +11,7 @@ from app.security import validate_sql
 from app.athena_client import execute_query
 from app.utils import gen_request_id
 from app.request_logger import log_request, get_logs, get_log_count
-from app.display_hint import get_display_type
+from app.display_hint import get_display_type, get_display_type_from_question
 from app.query_suggestions import generate_query_suggestions, get_schema_summary
 from app.input_validator import validate_nlq_input, ValidationResult
 from app.rate_limiter import get_rate_limiter, RateLimiter, RateLimitConfig
@@ -212,15 +212,23 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             executed = True
 
         # Step 8: Determine Display Type
-        # Use user-provided display type if specified in payload, otherwise auto-detect
+        # Priority: 1) User-provided display.type, 2) Question pattern matching, 3) SQL auto-detection
         if req.display and req.display.type:
             display_type = req.display.type
             logger.info(f"Using user-specified display type: {display_type}")
-        elif executed and execution_data:
-            display_type = get_display_type(sql, execution_data)
-            logger.info(f"Auto-detected display type: {display_type}")
         else:
-            display_type = "table"
+            # Try to detect from question text first (hardcoded patterns for known questions)
+            display_type = get_display_type_from_question(req.text)
+            
+            if display_type:
+                logger.info(f"Detected display type from question pattern: {display_type}")
+            elif executed and execution_data:
+                # Fallback to SQL-based auto-detection
+                display_type = get_display_type(sql, execution_data)
+                logger.info(f"Auto-detected display type from SQL: {display_type}")
+            else:
+                display_type = "table"
+                logger.info(f"Using default display type: {display_type}")
 
         total_latency_ms = int((time.time() - start_time) * 1000)
 

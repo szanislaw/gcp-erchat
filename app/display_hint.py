@@ -2,7 +2,89 @@
 # Determines the recommended display type for query results
 
 import re
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+
+
+def get_display_type_from_question(question: str) -> Optional[str]:
+    """
+    Determine display type based on the user's natural language question.
+    This is used BEFORE SQL generation to hardcode the display type for known patterns.
+    
+    Returns:
+        Display type string or None if no pattern matches (fallback to auto-detection)
+    """
+    q = question.lower().strip()
+    
+    # METRIC patterns (single numeric value)
+    metric_patterns = [
+        r'^how many\b.*\?$',  # "How many incidents..."
+        r'^what is the total\b',  # "What is the total cost..."
+        r'^what is the average\b.*\?$',  # "What is the average..." (without "by")
+        r'\bwere (reported|completed|created)\b.*today',  # "...reported today"
+        r'\bin the last \d+ days\?$',  # Ends with "in the last X days?"
+        r'\bin the last (week|month|year)\?$',  # Ends with time period
+    ]
+    
+    for pattern in metric_patterns:
+        if re.search(pattern, q):
+            # But NOT if it has aggregation by category
+            if not re.search(r'\bby (category|department|severity|status|property)', q):
+                return "metric"
+    
+    # PIE patterns (category breakdown, limited categories)
+    pie_patterns = [
+        r'breakdown by (severity|status|category)',
+        r'count.*by status',
+        r'distribution by',
+        r'most common .* incidents',  # "most common Room Cleanliness incidents"
+    ]
+    
+    for pattern in pie_patterns:
+        if re.search(pattern, q):
+            return "pie"
+    
+    # BAR patterns (category comparison, rankings)
+    bar_patterns = [
+        r'count.*by (department|category|property)',
+        r'which department',
+        r'average.*by category',
+        r'each property have',
+        r'by department',
+    ]
+    
+    for pattern in bar_patterns:
+        if re.search(pattern, q):
+            return "bar"
+    
+    # LINE patterns (time series)
+    line_patterns = [
+        r'per (day|week|month|year)',
+        r'over (time|the)',
+        r'trend',
+        r'incidents from last \d+ days.*per day',
+    ]
+    
+    for pattern in line_patterns:
+        if re.search(pattern, q):
+            return "line"
+    
+    # TABLE patterns (lists, details, filtering)
+    table_patterns = [
+        r'^show me (all|the)',  # "Show me all pending..."
+        r'^show (recent|high|medium|low)',  # "Show recent incidents..."
+        r'incidents (from|at|in)',  # "incidents from last week", "incidents at room"
+        r'top \d+',  # "top 5 incidents"
+        r'ordered by',
+        r'pending incidents',
+        r'at room \d+',
+    ]
+    
+    for pattern in table_patterns:
+        if re.search(pattern, q):
+            return "table"
+    
+    # No pattern matched - return None to use auto-detection
+    return None
 
 
 def get_display_type(sql: str, execution_data: Dict[str, Any]) -> str:
