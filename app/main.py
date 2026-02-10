@@ -217,7 +217,7 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             display_type = req.display.type
             logger.info(f"Using user-specified display type: {display_type}")
         elif executed and execution_data:
-            display_type = get_display_type(sql, execution_data)
+            display_type = get_display_type(sql, execution_data, query_text=req.text)
             logger.info(f"Auto-detected display type: {display_type}")
         else:
             display_type = "table"
