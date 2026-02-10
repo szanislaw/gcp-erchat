@@ -97,65 +97,79 @@ def get_display_type_from_question(question: str) -> Optional[str]:
     return None
 
 # Hardcoded query-to-display-type mapping for GM Demo Questions
-# Maps natural language queries to their desired display types
+# Maps natural language queries to their desired display types based on ACTUAL table columns
 # This mapping is checked FIRST before pattern matching or SQL analysis
 #
+# TABLE: incident_combine
+# COLUMNS: snapshotdate, group_name, account_uuid, property_name, recovery_uuid, recovery_no,
+#          category_name, incident_name, profile_name, department_name, severity_name, 
+#          mapping_uuid, compensation_text, potential_cost, actual_cost, status_name,
+#          location_name, vip, temperament_text, description, created_date, incident_time,
+#          completed_date, cancelled_date
+# PARTITIONS: account, property, date
+#
 # PHILOSOPHY: Match display type to data structure:
-# - table: Detailed rows (SELECT * queries)
+# - table: Detailed rows (SELECT * queries with specific columns)
 # - bar: Category comparisons (GROUP BY with aggregation, 5-50 categories)
 # - pie: Distribution breakdown (GROUP BY with aggregation, 2-10 categories)
 # - line: Time series trends (GROUP BY date with aggregation)
 # - metric: Single value (COUNT, SUM, AVG without GROUP BY)
 QUERY_DISPLAY_TYPE_MAP = {
-    # === DETAILED QUERIES (Table Display) ===
-    # These return SELECT * with WHERE filters - best shown as tables
-    "show me all incidents": "table",
-    "show me all pending incidents": "table",
-    "show me all service quality incidents": "table",
-    "show incidents from last 7 days": "table",
-    "show recent incidents with medium severity": "table",
-    "show me incidents for food and beverage category": "table",
-    "show high severity incidents that are still pending": "table",
-    "show me incidents with actual cost greater than 100": "table",
-    "show me all incidents sorted by actual cost": "table",
-    "show me completed incidents": "table",
-    "show me incidents ordered by severity": "table",
+    # === TABLE DISPLAY (Detailed rows with multiple columns) ===
+    # These return SELECT * or multiple specific columns - best shown as tables
+    "show me all incidents with their category and severity": "table",
+    "list all incidents with department and status": "table",
+    "show me incidents with compensation text and actual cost": "table",
+    "display all vip incidents with location and description": "table",
+    "show incidents from housekeeping department": "table",
+    "list all pending incidents with recovery number": "table",
+    "show me all incidents from the peninsula property": "table",
+    "display incidents with potential cost over 100": "table",
+    "show me all high severity incidents with their location": "table",
+    "list incidents by profile name and temperament": "table",
     
-    # === METRIC QUERIES (Single KPI Value) ===
-    # These return COUNT(*) or SUM - best shown as large numbers/KPI cards
-    "how many incidents are there": "metric",
-    "how many incidents do we have": "metric",
-    "how many high severity incidents": "metric",
-    "how many pending incidents": "metric",
+    # === METRIC DISPLAY (Single KPI value) ===
+    # COUNT(*), SUM(), AVG() without GROUP BY - best shown as large metric cards
     "what is the total incident count": "metric",
+    "how many incidents are there in the system": "metric",
+    "what is the total potential cost of all incidents": "metric",
+    "what is the average actual cost per incident": "metric",
+    "how many vip incidents do we have": "metric",
+    "what is the total compensation amount": "metric",
+    "count all incidents with severity high": "metric",
+    "how many completed incidents are there": "metric",
     
-    # === BAR CHART QUERIES (Category Comparisons) ===
-    # These use GROUP BY to compare categories - best shown as bar charts
-    "count incidents by category": "bar",
-    "show incidents by category": "bar",
-    "incidents by department": "bar",
-    "how many incidents per category": "bar",
-    "count incidents by severity": "bar",
-    "show incident breakdown by category": "bar",
-    "which categories have the most incidents": "bar",
+    # === BAR CHART DISPLAY (Category comparisons) ===
+    # GROUP BY category_name, department_name, severity_name, etc. with COUNT/SUM
+    "show incident count by category name": "bar",
+    "count incidents by department name": "bar",
+    "show incidents grouped by severity name": "bar",
+    "display incident breakdown by location name": "bar",
+    "show incident count by property name": "bar",
+    "count incidents by profile name": "bar",
+    "show actual cost by department name": "bar",
+    "display potential cost by category name": "bar",
+    "show average cost by severity name": "bar",
+    "count incidents by status name": "bar",
     
-    # === PIE CHART QUERIES (Distribution) ===
-    # These use GROUP BY with limited categories - best shown as pie charts
-    "incident breakdown by status": "pie",
-    "show status distribution": "pie",
-    "count incidents by status": "pie",
-    "incident distribution by severity": "pie",
-    "show severity breakdown": "pie",
-    "percentage of incidents by status": "pie",
+    # === PIE CHART DISPLAY (Distribution with limited categories) ===
+    # GROUP BY with 2-10 categories showing distribution percentages
+    "show status name distribution": "pie",
+    "display severity name breakdown": "pie",
+    "show vip vs non-vip incident distribution": "pie",
+    "incident percentage by status name": "pie",
+    "show completed vs pending vs cancelled breakdown": "pie",
+    "display incident distribution by temperament text": "pie",
     
-    # === LINE CHART QUERIES (Time Series) ===
-    # These use GROUP BY date with aggregation - best shown as line charts
-    "incidents per day last 7 days": "line",
-    "daily incident count last week": "line",
-    "incident trend over last 30 days": "line",
-    "show daily incident trend": "line",
-    "incidents per day this month": "line",
-    "daily incident count": "line",
+    # === LINE CHART DISPLAY (Time series trends) ===
+    # GROUP BY date, created_date, completed_date with aggregation over time
+    "show incident trend by created date": "line",
+    "display daily incident count from snapshotdate": "line",
+    "show incident completion trend by completed date": "line",
+    "count incidents per day for last 30 days": "line",
+    "display incident time series by date partition": "line",
+    "show weekly incident count trend": "line",
+    "display monthly incident count by created date": "line",
 }
 
 
