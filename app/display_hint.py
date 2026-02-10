@@ -10,10 +10,20 @@ def get_display_type_from_question(question: str) -> Optional[str]:
     Determine display type based on the user's natural language question.
     This is used BEFORE SQL generation to hardcode the display type for known patterns.
     
+    Priority:
+    1. Exact match in QUERY_DISPLAY_TYPE_MAP (for GM demo questions)
+    2. Pattern matching (regex-based detection)
+    
     Returns:
         Display type string or None if no pattern matches (fallback to auto-detection)
     """
     q = question.lower().strip()
+    
+    # PRIORITY 1: Check hardcoded GM demo question mapping first
+    if q in QUERY_DISPLAY_TYPE_MAP:
+        return QUERY_DISPLAY_TYPE_MAP[q]
+    
+    # PRIORITY 2: Pattern-based detection for other questions
     
     # METRIC patterns (single numeric value)
     metric_patterns = [
@@ -88,35 +98,42 @@ def get_display_type_from_question(question: str) -> Optional[str]:
 
 # Hardcoded query-to-display-type mapping for GM Demo Questions
 # Maps natural language queries to their desired display types
+# This mapping is checked FIRST before pattern matching or SQL analysis
 QUERY_DISPLAY_TYPE_MAP = {
-    # OPERATIONAL OVERVIEW
-    "how many incidents do we have?": "metric",
+    # === OPERATIONAL OVERVIEW (5 questions) ===
+    "show me all incidents": "table",
     "show me all pending incidents": "table",
-    "count incidents by category": "bar",
-    "show incidents from last 7 days": "table",
-    "how many high severity incidents are there?": "metric",
+    "show me all service quality incidents": "bar",
+    "show incidents from last 7 days": "line",
+    "show recent incidents with medium severity": "pie",
     
-    # GUEST EXPERIENCE
-    "show me incidents for food and beverage category": "table",
-    "what are the most common incident categories?": "bar",
+    # === GUEST EXPERIENCE (4 questions) ===
+    "show me incidents for food and beverage category": "bar",
     "show high severity incidents that are still pending": "table",
-    "show me all incidents at location room 1018": "table",
     
-    # FINANCIAL IMPACT
-    "what is the total actual cost of all incidents?": "metric",
-    "show me the incidents with highest actual cost": "table",
-    "what is the average actual cost by category?": "bar",
+    # === FINANCIAL IMPACT (3 questions) ===
+    "show me incidents with actual cost greater than 100": "bar",
+    "show me all incidents sorted by actual cost": "table",
+    "show me completed incidents": "pie",
     
-    # PERFORMANCE ANALYTICS
-    "which category has the most incidents?": "bar",
-    "show incident breakdown by severity": "pie",
-    "show recent incidents with medium severity": "table",
+    # === PERFORMANCE ANALYTICS (4 questions) ===
+    "show me incidents ordered by severity": "bar",
     
-    # STRATEGIC INSIGHTS
-    "how many incidents were completed?": "metric",
-    "how many incidents does each property have?": "bar",
-    "show me incidents ordered by severity": "table",
-    "count incidents by status": "pie",
+    # Note: Some questions appear in multiple categories with the same display type
+    # - "Show incidents from last 7 days" → line (already mapped above)
+    # - "Show me incidents for Food and Beverage category" → appears 3 times, but:
+    #     * Questions 6 & 15 use "bar" (dominant mapping)
+    #     * Question 7 uses "table" (exception - will follow dominant)
+    # - "Show recent incidents with medium severity" → pie (already mapped above)
+    # - "Show me completed incidents" → appears twice:
+    #     * Question 12: pie
+    #     * Question 17: bar (exception - resolved by using first mapping)
+    
+    # === STRATEGIC INSIGHTS (4 questions) ===
+    # "show me completed incidents" already mapped above as "pie"
+    # "show me all pending incidents" already mapped above as "table"
+    # "show me incidents ordered by severity" already mapped above as "bar"
+    # "show me all incidents sorted by actual cost" already mapped above as "table"
 }
 
 

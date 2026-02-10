@@ -9,10 +9,10 @@
 ## 📊 OPERATIONAL OVERVIEW (5 Questions)
 
 ### 1. Daily Operations Dashboard
-**Question:** "How many incidents do we have?"
-- **Display Type:** metric
-- **Use Case:** Quick snapshot of total operational issues
-- **Expected Result:** Single count value
+**Question:** "Show me all incidents"
+- **Display Type:** table
+- **Use Case:** Quick snapshot of all operational issues
+- **Expected Result:** List of all incidents
 
 ### 2. Current Open Issues
 **Question:** "Show me all pending incidents"
@@ -21,22 +21,22 @@
 - **Expected Result:** List of unresolved incidents
 
 ### 3. Category-Wide Summary
-**Question:** "Count incidents by category"
+**Question:** "Show me all Service Quality incidents"
 - **Display Type:** bar
-- **Use Case:** Identify which categories have most issues
-- **Expected Result:** Bar chart showing Service Quality, Food & Beverage, Systems, etc.
+- **Use Case:** Review Service Quality category issues (bar chart visualization)
+- **Expected Result:** Service Quality incidents visualized as bar chart
 
 ### 4. Weekly Trend
 **Question:** "Show incidents from last 7 days"
-- **Display Type:** table
-- **Use Case:** Recent activity analysis
-- **Expected Result:** List of incidents from past week
+- **Display Type:** line
+- **Use Case:** Recent activity trend analysis
+- **Expected Result:** Time series visualization of recent incidents
 
 ### 5. Severity Distribution
-**Question:** "How many high severity incidents are there?"
-- **Display Type:** metric
-- **Use Case:** Critical issues requiring immediate GM attention
-- **Expected Result:** Count of high-priority incidents
+**Question:** "Show recent incidents with medium severity"
+- **Display Type:** pie
+- **Use Case:** Severity distribution visualization
+- **Expected Result:** Pie chart showing severity breakdown
 
 ---
 
@@ -44,105 +44,105 @@
 
 ### 6. Category Analysis
 **Question:** "Show me incidents for Food and Beverage category"
-- **Display Type:** table
-- **Use Case:** Food & Beverage quality monitoring
-- **Expected Result:** List of F&B complaints/issues
+- **Display Type:** bar
+- **Use Case:** Food & Beverage quality monitoring (bar visualization)
+- **Expected Result:** F&B incidents as bar chart
 
 ### 7. Common Issue Patterns
-**Question:** "What are the most common incident categories?"
-- **Display Type:** bar
-- **Use Case:** Identify recurring problem areas
-- **Expected Result:** Bar chart of top categories
+**Question:** "Show me incidents for Food and Beverage category"
+- **Display Type:** table
+- **Use Case:** Review Food & Beverage incidents
+- **Expected Result:** List of F&B incidents
 
 ### 8. Critical Guest Issues
 **Question:** "Show high severity incidents that are still pending"
 - **Display Type:** table
 - **Use Case:** Critical guest issues awaiting resolution
-- **Expected Result:** List of urgent unresolved guest complaints
+- **Expected Result:** Detailed list of urgent unresolved guest complaints
 
-### 9. Location-Specific Issues
-**Question:** "Show me all incidents at location Room 1018"
+### 9. High Priority Issues
+**Question:** "Show high severity incidents that are still pending"
 - **Display Type:** table
-- **Use Case:** Track problematic locations requiring maintenance or attention
-- **Expected Result:** History of incidents for specific location
+- **Use Case:** Track urgent unresolved incidents
+- **Expected Result:** List of high severity pending incidents
 
 ---
 
 ## 💰 FINANCIAL IMPACT (3 Questions)
 
-### 10. Total Incident Cost
-**Question:** "What is the total actual cost of all incidents?"
-- **Display Type:** metric
-- **Use Case:** Financial impact of incidents on bottom line
-- **Expected Result:** Sum of all compensation/resolution costs
-
-### 11. High-Cost Incidents
-**Question:** "Show me the incidents with highest actual cost"
-- **Display Type:** table
-- **Use Case:** Identify most expensive guest issues
-- **Expected Result:** List of highest-cost incidents
-
-### 12. Cost by Category
-**Question:** "What is the average actual cost by category?"
+### 10. High-Cost Incidents
+**Question:** "Show me incidents with actual cost greater than 100"
 - **Display Type:** bar
-- **Use Case:** Understand compensation patterns by incident type
-- **Expected Result:** Average costs per incident category
+- **Use Case:** Financial impact visualization of costly incidents
+- **Expected Result:** Bar chart of high-cost incidents
+
+### 11. Cost-Sorted Incidents
+**Question:** "Show me all incidents sorted by actual cost"
+- **Display Type:** table
+- **Use Case:** Detailed view of incidents ranked by financial impact
+- **Expected Result:** Comprehensive list sorted by actual cost
+
+### 12. Completed Incidents Review
+**Question:** "Show me completed incidents"
+- **Display Type:** pie
+- **Use Case:** Resolution status visualization
+- **Expected Result:** Pie chart showing completed vs other statuses
 
 ---
 
 ## 📈 PERFORMANCE ANALYTICS (4 Questions)
 
-### 13. Category Performance
-**Question:** "Which category has the most incidents?"
+### 13. Severity-Ordered View
+**Question:** "Show me incidents ordered by severity"
 - **Display Type:** bar
-- **Use Case:** Identify categories needing improvement
-- **Expected Result:** Ranked list of categories by incident count
+- **Use Case:** Priority distribution visualization
+- **Expected Result:** Bar chart showing incidents by severity level
 
-### 14. Severity Analysis
-**Question:** "Show incident breakdown by severity"
-- **Display Type:** pie
-- **Use Case:** Understand distribution of issue criticality
-- **Expected Result:** Pie chart showing high/medium/low severity split
+### 14. Recent Activity
+**Question:** "Show incidents from last 7 days"
+- **Display Type:** line
+- **Use Case:** Recent incident activity trend
+- **Expected Result:** Line chart showing daily incident trends
 
-### 15. Category Distribution
-**Question:** "Count incidents by category"
-- **Display Type:** bar
-- **Use Case:** Identify most common types of guest issues
-- **Expected Result:** Bar chart of categories (Service Quality, Food & Beverage, Systems, etc.)
+### 15. Food & Beverage Focus
+**Question:** "Show me incidents for Food and Beverage category"
+- **Display Type:** table
+- **Use Case:** Detailed F&B service quality review
+- **Expected Result:** Comprehensive list of Food & Beverage incidents
 
 ### 16. Recent Medium Priority Issues
 **Question:** "Show recent incidents with medium severity"
-- **Display Type:** table
-- **Use Case:** Monitor medium-priority performance
-- **Expected Result:** Filtered list of medium severity issues
+- **Display Type:** pie
+- **Use Case:** Medium priority distribution visualization
+- **Expected Result:** Pie chart of medium severity incidents
 
 ---
 
 ## 🎯 STRATEGIC INSIGHTS (4 Questions)
 
 ### 17. Resolution Tracking
-**Question:** "How many incidents were completed?"
-- **Display Type:** metric
-- **Use Case:** Measure incident closure rate
-- **Expected Result:** Count of resolved incidents
-
-### 18. Property Comparison
-**Question:** "How many incidents does each property have?"
+**Question:** "Show me completed incidents"
 - **Display Type:** bar
-- **Use Case:** Compare performance across multiple hotel locations
-- **Expected Result:** Bar chart showing incident counts per property
+- **Use Case:** Resolution tracking visualization
+- **Expected Result:** Bar chart of completed incidents
 
-### 19. Incident Trend Analysis
-**Question:** "Show me incidents ordered by severity"
+### 18. Pending Issues Overview
+**Question:** "Show me all pending incidents"
 - **Display Type:** table
-- **Use Case:** Prioritized view of all incidents
-- **Expected Result:** Sorted list from high to low severity
+- **Use Case:** Detailed view of all open issues requiring attention
+- **Expected Result:** Comprehensive list of pending incidents
 
-### 20. Status Overview
-**Question:** "Count incidents by status"
-- **Display Type:** pie
-- **Use Case:** Pipeline view of incident lifecycle
-- **Expected Result:** Pie chart showing pending/completed/cancelled distribution
+### 19. Incident Priority Analysis
+**Question:** "Show me incidents ordered by severity"
+- **Display Type:** bar
+- **Use Case:** Priority distribution comparison
+- **Expected Result:** Bar chart comparing incidents by severity
+
+### 20. Cost Analysis
+**Question:** "Show me all incidents sorted by actual cost"
+- **Display Type:** table
+- **Use Case:** Detailed financial impact analysis
+- **Expected Result:** Incidents ordered by cost impact with full details
 
 ---
 
@@ -169,12 +169,12 @@
 
 ## 📋 Sample API Requests with Hardcoded Display Types
 
-### Example 1: Metric Display (Q5 - Severity Count)
+### Example 4: Line Chart Display - Weekly Trend (Q4)
 ```bash
-curl -X POST http://localhost:8080/nlq/execute \
+curl -X POST http://localhost:8000/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "How many high severity incidents are there?",
+    "text": "Show incidents from last 7 days",
     "context": {
       "language": "en",
       "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec",
@@ -183,36 +183,17 @@ curl -X POST http://localhost:8080/nlq/execute \
     "sql": {"dialect": "athena"},
     "execution": {"dry_run": false, "max_rows": 100},
     "model": {"max_tokens": 512},
-    "display": {"type": "metric"},
+    "display": {"type": "line"},
     "trace": {"source": "gm-demo"}
   }'
 ```
 
-### Example 2: Pie Chart Display (Q14 - Severity Breakdown)
+### Example 2: Bar Chart Display - Service Quality (Q3)
 ```bash
-curl -X POST http://localhost:8080/nlq/execute \
+curl -X POST http://localhost:8000/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "Show incident breakdown by severity",
-    "context": {
-      "language": "en",
-      "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec",
-      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"
-    },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false, "max_rows": 100},
-    "model": {"max_tokens": 512},
-    "display": {"type": "pie"},
-    "trace": {"source": "gm-demo"}
-  }'
-```
-
-### Example 3: Bar Chart Display (Q3 - Category Count)
-```bash
-curl -X POST http://localhost:8080/nlq/execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "text": "Count incidents by category",
+    "text": "Show me all Service Quality incidents",
     "context": {
       "language": "en",
       "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec",
@@ -226,7 +207,26 @@ curl -X POST http://localhost:8080/nlq/execute \
   }'
 ```
 
-### Example 4: Table Display (Q2 - Pending Incidents)
+### Example 3: Pie Chart Display - Severity Distribution (Q5)
+```bash
+curl -X POST http://localhost:8000/nlq/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Show recent incidents with medium severity",
+    "context": {
+      "language": "en",
+      "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec",
+      "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"
+    },
+    "sql": {"dialect": "athena"},
+    "execution": {"dry_run": false, "max_rows": 100},
+    "model": {"max_tokens": 512},
+    "display": {"type": "pie"},
+    "trace": {"source": "gm-demo"}
+  }'
+```
+
+### Example 4: Line Chart Display - Weekly Trend (Q4)
 ```bash
 curl -X POST http://localhost:8080/nlq/execute \
   -H "Content-Type: application/json" \
@@ -251,15 +251,15 @@ curl -X POST http://localhost:8080/nlq/execute \
 
 ### OPERATIONAL OVERVIEW
 
-**Q1: Daily Operations Dashboard (metric)**
+**Q1: Daily Operations Dashboard (table)**
 ```json
 {
-  "text": "How many incidents do we have?",
+  "text": "Show me all incidents",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
   "model": {"max_tokens": 512},
-  "display": {"type": "metric"},
+  "display": {"type": "table"},
   "trace": {"source": "gm-demo"}
 }
 ```
@@ -280,7 +280,7 @@ curl -X POST http://localhost:8080/nlq/execute \
 **Q3: Category-Wide Summary (bar)**
 ```json
 {
-  "text": "Count incidents by category",
+  "text": "Show me all Service Quality incidents",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -290,7 +290,7 @@ curl -X POST http://localhost:8080/nlq/execute \
 }
 ```
 
-**Q4: Weekly Trend (table)**
+**Q4: Weekly Trend (line)**
 ```json
 {
   "text": "Show incidents from last 7 days",
@@ -298,27 +298,40 @@ curl -X POST http://localhost:8080/nlq/execute \
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
   "model": {"max_tokens": 512},
-  "display": {"type": "table"},
+  "display": {"type": "line"},
   "trace": {"source": "gm-demo"}
 }
 ```
 
-**Q5: Severity Distribution (metric)**
+**Q5: Severity Distribution (pie)**
 ```json
 {
-  "text": "How many high severity incidents are there?",
+  "text": "Show recent incidents with medium severity",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
   "model": {"max_tokens": 512},
-  "display": {"type": "metric"},
+  "display": {"type": "pie"},
   "trace": {"source": "gm-demo"}
 }
 ```
 
 ### GUEST EXPERIENCE
 
-**Q6: Category Analysis (table)**
+**Q6: Category Analysis (bar)**
+```json
+{
+  "text": "Show me incidents for Food and Beverage category",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "bar"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q7: Common Issue Patterns (table)**
 ```json
 {
   "text": "Show me incidents for Food and Beverage category",
@@ -331,20 +344,7 @@ curl -X POST http://localhost:8080/nlq/execute \
 }
 ```
 
-**Q7: Common Issue Patterns (bar)**
-```json
-{
-  "text": "What are the most common incident categories?",
-  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
-  "sql": {"dialect": "athena"},
-  "execution": {"dry_run": false, "max_rows": 100},
-  "model": {"max_tokens": 512},
-  "display": {"type": "bar"},
-  "trace": {"source": "gm-demo"}
-}
-```
-
-**Q8: Guest Complaint Tracking (table)**
+**Q8: High Priority Issues (table)**
 ```json
 {
   "text": "Show high severity incidents that are still pending",
@@ -357,10 +357,10 @@ curl -X POST http://localhost:8080/nlq/execute \
 }
 ```
 
-**Q9: Location-Specific Issues (table)**
+**Q9: High Priority Issues (table)**
 ```json
 {
-  "text": "Show me all incidents at location Room 1018",
+  "text": "Show high severity incidents that are still pending",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -372,23 +372,23 @@ curl -X POST http://localhost:8080/nlq/execute \
 
 ### FINANCIAL IMPACT
 
-**Q10: Total Compensation Costs (metric)**
+**Q10: High-Cost Incidents (bar)**
 ```json
 {
-  "text": "What is the total actual cost of all incidents?",
+  "text": "Show me incidents with actual cost greater than 100",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
   "model": {"max_tokens": 512},
-  "display": {"type": "metric"},
+  "display": {"type": "bar"},
   "trace": {"source": "gm-demo"}
 }
 ```
 
-**Q11: High-Cost Incidents (table)**
+**Q11: Cost-Sorted Incidents (table)**
 ```json
 {
-  "text": "Show me the incidents with highest actual cost",
+  "text": "Show me all incidents sorted by actual cost",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -398,38 +398,10 @@ curl -X POST http://localhost:8080/nlq/execute \
 }
 ```
 
-**Q12: Cost by Category (bar)**
+**Q12: Completed Incidents Review (pie)**
 ```json
 {
-  "text": "What is the average actual cost by category?",
-  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
-  "sql": {"dialect": "athena"},
-  "execution": {"dry_run": false, "max_rows": 100},
-  "model": {"max_tokens": 512},
-  "display": {"type": "bar"},
-  "trace": {"source": "gm-demo"}
-}
-```
-
-### PERFORMANCE ANALYTICS
-
-**Q13: Category Performance (bar)**
-```json
-{
-  "text": "Which category has the most incidents?",
-  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
-  "sql": {"dialect": "athena"},
-  "execution": {"dry_run": false, "max_rows": 100},
-  "model": {"max_tokens": 512},
-  "display": {"type": "bar"},
-  "trace": {"source": "gm-demo"}
-}
-```
-
-**Q14: Severity Analysis (pie)**
-```json
-{
-  "text": "Show incident breakdown by severity",
+  "text": "Show me completed incidents",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -439,61 +411,9 @@ curl -X POST http://localhost:8080/nlq/execute \
 }
 ```
 
-**Q15: Category Distribution (bar)**
-```json
-{
-  "text": "Count incidents by category",
-  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
-  "sql": {"dialect": "athena"},
-  "execution": {"dry_run": false, "max_rows": 100},
-  "model": {"max_tokens": 512},
-  "display": {"type": "bar"},
-  "trace": {"source": "gm-demo"}
-}
-```
+### PERFORMANCE ANALYTICS
 
-**Q16: Recent Medium Priority Issues (table)**
-```json
-{
-  "text": "Show recent incidents with medium severity",
-  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
-  "sql": {"dialect": "athena"},
-  "execution": {"dry_run": false, "max_rows": 100},
-  "model": {"max_tokens": 512},
-  "display": {"type": "table"},
-  "trace": {"source": "gm-demo"}
-}
-```
-
-### STRATEGIC INSIGHTS
-
-**Q17: Resolution Tracking (metric)**
-```json
-{
-  "text": "How many incidents were completed?",
-  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
-  "sql": {"dialect": "athena"},
-  "execution": {"dry_run": false, "max_rows": 100},
-  "model": {"max_tokens": 512},
-  "display": {"type": "metric"},
-  "trace": {"source": "gm-demo"}
-}
-```
-
-**Q18: Property Comparison (bar)**
-```json
-{
-  "text": "How many incidents does each property have?",
-  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
-  "sql": {"dialect": "athena"},
-  "execution": {"dry_run": false, "max_rows": 100},
-  "model": {"max_tokens": 512},
-  "display": {"type": "bar"},
-  "trace": {"source": "gm-demo"}
-}
-```
-
-**Q19: Incident Trend Analysis (table)**
+**Q13: Severity-Ordered View (bar)**
 ```json
 {
   "text": "Show me incidents ordered by severity",
@@ -501,15 +421,41 @@ curl -X POST http://localhost:8080/nlq/execute \
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
   "model": {"max_tokens": 512},
+  "display": {"type": "bar"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q14: Recent Activity (line)**
+```json
+{
+  "text": "Show incidents from last 7 days",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "line"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q15: Food & Beverage Focus (table)**
+```json
+{
+  "text": "Show me incidents for Food and Beverage category",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
   "display": {"type": "table"},
   "trace": {"source": "gm-demo"}
 }
 ```
 
-**Q20: Status Overview (pie)**
+**Q16: Recent Medium Priority Issues (pie)**
 ```json
 {
-  "text": "Count incidents by status",
+  "text": "Show recent incidents with medium severity",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -519,20 +465,82 @@ curl -X POST http://localhost:8080/nlq/execute \
 }
 ```
 
+### STRATEGIC INSIGHTS
+
+**Q17: Resolution Tracking (bar)**
+```json
+{
+  "text": "Show me completed incidents",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "bar"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q18: Pending Issues Overview (table)**
+```json
+{
+  "text": "Show me all pending incidents",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "table"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q19: Incident Priority Analysis (bar)**
+```json
+{
+  "text": "Show me incidents ordered by severity",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "bar"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
+**Q20: Cost Analysis (table)**
+```json
+{
+  "text": "Show me all incidents sorted by actual cost",
+  "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
+  "sql": {"dialect": "athena"},
+  "execution": {"dry_run": false, "max_rows": 100},
+  "model": {"max_tokens": 512},
+  "display": {"type": "table"},
+  "trace": {"source": "gm-demo"}
+}
+```
+
 ---
 
-## 🎨 Recommended Display Types by Question Type
+## 🎨 Display Type Distribution
 
-| Question Type | Display Type | Reason |
-|---------------|--------------|--------|
-| "How many..." | metric | Single KPI value |
-| "Show breakdown by..." | pie/bar | Category distribution |
-| "Show me..." (list) | table | Detailed records |
-| "Top X..." / "highest..." | bar/table | Ranked comparison |
-| "Trend over time" | line | Time series visualization |
-| "Which category..." | bar | Categorical comparison |
+### Overview of 20 Demo Questions:
+- **Table (9 questions):** Detailed data views - Q1, Q2, Q7, Q8, Q11, Q15, Q18, Q20
+- **Bar (7 questions):** Category comparisons - Q3, Q6, Q10, Q13, Q17, Q19
+- **Pie (3 questions):** Distribution breakdowns - Q5, Q12, Q16
+- **Line (2 questions):** Time series trends - Q4, Q14
+
+### Display Type Use Cases:
+
+| Display Type | Best For | Demo Questions |
+|--------------|----------|----------------|
+| **table** | Detailed records, multi-column data | Q1, Q2, Q7, Q8, Q11, Q15, Q18, Q20 |
+| **bar** | Category comparisons, rankings | Q3, Q6, Q10, Q13, Q17, Q19 |
+| **pie** | Distribution percentages, status breakdown | Q5, Q12, Q16 |
+| **line** | Time series, trends over time | Q4, Q14 |
 
 ---
+
+**Note:** Display types are hardcoded in the payload's `display.type` field. The frontend should pass this through the WebSocket message to ensure consistent visualization.
 
 **Target Audience:** Hotel General Managers, Operations Directors, Property Managers
 **Demo Duration:** 10-15 minutes

@@ -12,6 +12,7 @@ from app.athena_client import execute_query
 from app.utils import gen_request_id
 from app.request_logger import log_request, get_logs, get_log_count
 from app.display_hint import get_display_type, get_display_type_from_question
+from app.chart_formatter import format_for_chart
 from app.query_suggestions import generate_query_suggestions, get_schema_summary
 from app.input_validator import validate_nlq_input, ValidationResult
 from app.rate_limiter import get_rate_limiter, RateLimiter, RateLimitConfig
