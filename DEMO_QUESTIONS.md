@@ -1,5 +1,154 @@
 # Demo Questions - Hotel Incident Management
 
+## System Workflow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          USER INPUT (Natural Language)                   │
+│                    "What is the total incident count?"                   │
+└─────────────────────────┬───────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    NLQ API (localhost:8000/nlq/execute)                  │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  1. Receive Request                                             │   │
+│  │     - text: natural language query                              │   │
+│  │     - context: property_uuid, account_uuid                      │   │
+│  │     - sql: dialect (athena)                                     │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────┬───────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│              DISPLAY TYPE DETECTION (app/display_hint.py)                │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  Priority 1: Hardcoded Mapping (QUERY_DISPLAY_TYPE_MAP)        │   │
+│  │  └─ Check if question matches exact string in map              │   │
+│  │  └─ Return: table | metric | bar | pie | line                  │   │
+│  │                                                                  │   │
+│  │  Priority 2: Pattern Matching (Regex)                          │   │
+│  │  └─ Match patterns: "how many", "by category", "trend"         │   │
+│  │  └─ Return appropriate display type                            │   │
+│  │                                                                  │   │
+│  │  Priority 3: SQL Analysis (Fallback)                           │   │
+│  │  └─ Analyze GROUP BY, aggregation, time series                 │   │
+│  │  └─ Default to "table" if uncertain                            │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────┬───────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    SQL GENERATION (app/sqlcoder.py)                      │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  2. Load Schema from AWS Glue                                   │   │
+│  │     - Table: incident_combine                                   │   │
+│  │     - Columns: category_name, severity_name, actual_cost, etc.  │   │
+│  │                                                                  │   │
+│  │  3. Generate SQL Query                                          │   │
+│  │     - Apply property_uuid filter (partition)                    │   │
+│  │     - Build appropriate aggregations                            │   │
+│  │     - Output: SELECT COUNT(*) FROM incident_combine WHERE...    │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────┬───────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                  QUERY EXECUTION (app/athena_client.py)                  │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  4. Execute on AWS Athena                                       │   │
+│  │     - Database: peninsula-incident2                             │   │
+│  │     - Region: us-west-2                                         │   │
+│  │     - S3 Results: s3://athena-query-results-peninsula/          │   │
+│  │                                                                  │   │
+│  │  5. Validate Results                                            │   │
+│  │     - Security check (SQL injection prevention)                 │   │
+│  │     - Table allowlist validation                                │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────┬───────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                   RESPONSE FORMATTING (app/main.py)                      │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  6. Build Response Payload                                      │   │
+│  │     {                                                            │   │
+│  │       "display": {                                              │   │
+│  │         "type": "metric",                                       │   │
+│  │         "chart_data": {...}  // For bar/pie/line only          │   │
+│  │       },                                                         │   │
+│  │       "execution": {                                            │   │
+│  │         "columns": ["count"],                                   │   │
+│  │         "rows": [{"count": 12548}]                              │   │
+│  │       },                                                         │   │
+│  │       "query": "SELECT COUNT(*) FROM incident_combine..."       │   │
+│  │     }                                                            │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────┬───────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        FRONTEND RENDERING                                │
+│  ┌──────────────┬──────────────┬──────────────┬──────────────┐         │
+│  │   TABLE      │   METRIC     │   BAR CHART  │   PIE CHART  │         │
+│  │  ┌────────┐  │  ┌────────┐  │  ┌────────┐  │  ┌────────┐  │         │
+│  │  │ Row 1  │  │  │ 12,548 │  │  │   ███   │  │  │   ◕    │  │         │
+│  │  │ Row 2  │  │  │ Total  │  │  │   ███   │  │  │  ◕◕◕   │  │         │
+│  │  │ Row 3  │  │  │Incident│  │  │   ██    │  │  │ ◕◕     │  │         │
+│  │  │  ...   │  │  │        │  │  │   █     │  │  │        │  │         │
+│  │  └────────┘  │  └────────┘  │  └────────┘  │  └────────┘  │         │
+│  └──────────────┴──────────────┴──────────────┴──────────────┘         │
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────┐          │
+│  │                    LINE CHART                             │          │
+│  │  ┌──────────────────────────────────────────────────────┐ │          │
+│  │  │        /\      /\                                     │ │          │
+│  │  │       /  \    /  \    /\                             │ │          │
+│  │  │      /    \  /    \  /  \                            │ │          │
+│  │  │─────────────────────────────────────────────────────│ │          │
+│  │  └──────────────────────────────────────────────────────┘ │          │
+│  └──────────────────────────────────────────────────────────┘          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+## Display Type Decision Flow
+
+```
+Natural Language Query
+        │
+        ▼
+┌─────────────────────────┐
+│ Normalize & lowercase   │
+│ "what is the total..."  │
+└───────────┬─────────────┘
+            │
+            ▼
+   ┌────────────────────┐
+   │ Check Hardcoded    │──YES──► Return "metric"
+   │ QUERY_DISPLAY_MAP? │
+   └────────┬───────────┘
+            │ NO
+            ▼
+   ┌────────────────────┐
+   │ Regex Pattern      │──MATCH──► "how many" → metric
+   │ Matching?          │          "by category" → bar
+   └────────┬───────────┘          "trend" → line
+            │ NO MATCH              "distribution" → pie
+            ▼                       "show me all" → table
+   ┌────────────────────┐
+   │ Wait for SQL       │
+   │ Generation         │
+   └────────┬───────────┘
+            │
+            ▼
+   ┌────────────────────┐
+   │ Analyze SQL:       │──► Single value → metric
+   │ - Aggregations?    │──► GROUP BY + COUNT → bar/pie
+   │ - GROUP BY?        │──► GROUP BY date → line
+   │ - Time series?     │──► SELECT * → table
+   └────────────────────┘
+```
+
 ## Overview
 20 demonstration questions showcasing all 5 display types using the `incident_combine` table from Athena.
 

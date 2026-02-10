@@ -126,6 +126,19 @@ STRICT RULES:
 - Use LOWERCASE for categorical values (severity_name, status_name, etc.)
 - Use EXACT CASE for property names and location names (e.g., 'The Peninsula Manila')
 - Use LOWER() function for case-insensitive matching when needed
+
+⚠️ COLUMN SELECTION RULES (CRITICAL):
+- NEVER use SELECT * - always specify explicit columns
+- SELECT ONLY the columns directly relevant to the user's question
+- For queries asking about specific attributes, select ONLY those attributes plus identifying columns
+- Examples:
+  ✓ "high severity incidents with location" → SELECT severity_name, location_name, recovery_no, description
+  ✓ "department and compensation details" → SELECT department_name, compensation_text, actual_cost, status_name
+  ✓ "category and status" → SELECT category_name, status_name, severity_name, description
+  ✗ "high severity incidents with location" → SELECT * (TOO BROAD)
+- Always include 1-2 identifying columns (recovery_no, incident_name) for context
+- For aggregation queries (COUNT, SUM, AVG), only select the grouped and aggregated columns
+- Maximum 6-8 columns for detail queries to keep results focused and readable
 {property_restriction}
 DATE FILTERING RULES (ONLY WHEN USER ASKS ABOUT DATES/TIME):
 ⚠️ IMPORTANT: Only add date filters if the user question mentions dates, time periods, or temporal context
