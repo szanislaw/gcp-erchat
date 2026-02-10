@@ -9,9 +9,9 @@
 ## 📊 OPERATIONAL OVERVIEW (5 Questions)
 
 ### 1. Daily Operations Dashboard
-**Question:** "How many incidents were reported today?"
+**Question:** "How many incidents do we have?"
 - **Display Type:** metric
-- **Use Case:** Quick daily snapshot of operational issues
+- **Use Case:** Quick snapshot of total operational issues
 - **Expected Result:** Single count value
 
 ### 2. Current Open Issues
@@ -20,11 +20,11 @@
 - **Use Case:** Active issues requiring attention
 - **Expected Result:** List of unresolved incidents
 
-### 3. Property-Wide Summary
-**Question:** "Count incidents by department"
+### 3. Category-Wide Summary
+**Question:** "Count incidents by category"
 - **Display Type:** bar
-- **Use Case:** Identify which departments have most issues
-- **Expected Result:** Bar chart showing Housekeeping, Front Desk, F&B, Maintenance, etc.
+- **Use Case:** Identify which categories have most issues
+- **Expected Result:** Bar chart showing Service Quality, Food & Beverage, Systems, etc.
 
 ### 4. Weekly Trend
 **Question:** "Show incidents from last 7 days"
@@ -33,7 +33,7 @@
 - **Expected Result:** List of incidents from past week
 
 ### 5. Severity Distribution
-**Question:** "How many high severity incidents in the last 30 days?"
+**Question:** "How many high severity incidents are there?"
 - **Display Type:** metric
 - **Use Case:** Critical issues requiring immediate GM attention
 - **Expected Result:** Count of high-priority incidents
@@ -42,48 +42,48 @@
 
 ## 🏨 GUEST EXPERIENCE (4 Questions)
 
-### 6. Room Service Issues
-**Question:** "Show me Room Service incidents from this week"
+### 6. Category Analysis
+**Question:** "Show me incidents for Food and Beverage category"
 - **Display Type:** table
 - **Use Case:** Food & Beverage quality monitoring
-- **Expected Result:** List of Room Service complaints/issues
+- **Expected Result:** List of F&B complaints/issues
 
-### 7. Housekeeping Performance
-**Question:** "What are the most common Room Cleanliness incidents?"
-- **Display Type:** bar/pie
-- **Use Case:** Identify recurring housekeeping problems
-- **Expected Result:** Breakdown of cleanliness issues
+### 7. Common Issue Patterns
+**Question:** "What are the most common incident categories?"
+- **Display Type:** bar
+- **Use Case:** Identify recurring problem areas
+- **Expected Result:** Bar chart of top categories
 
-### 8. Guest Complaint Tracking
+### 8. Critical Guest Issues
 **Question:** "Show high severity incidents that are still pending"
 - **Display Type:** table
 - **Use Case:** Critical guest issues awaiting resolution
 - **Expected Result:** List of urgent unresolved guest complaints
 
-### 9. Room-Specific Issues
-**Question:** "Show me all incidents at room 1018"
+### 9. Location-Specific Issues
+**Question:** "Show me all incidents at location Room 1018"
 - **Display Type:** table
-- **Use Case:** Track problematic rooms requiring maintenance or attention
-- **Expected Result:** History of incidents for specific room
+- **Use Case:** Track problematic locations requiring maintenance or attention
+- **Expected Result:** History of incidents for specific location
 
 ---
 
 ## 💰 FINANCIAL IMPACT (3 Questions)
 
-### 10. Total Compensation Costs
+### 10. Total Incident Cost
 **Question:** "What is the total actual cost of all incidents?"
 - **Display Type:** metric
 - **Use Case:** Financial impact of incidents on bottom line
 - **Expected Result:** Sum of all compensation/resolution costs
 
 ### 11. High-Cost Incidents
-**Question:** "Show me the top 5 incidents by actual cost"
+**Question:** "Show me the incidents with highest actual cost"
 - **Display Type:** table
 - **Use Case:** Identify most expensive guest issues
-- **Expected Result:** List of 5 highest-cost incidents
+- **Expected Result:** List of highest-cost incidents
 
-### 12. Compensation Analysis
-**Question:** "What is the average actual cost for completed incidents by category?"
+### 12. Cost by Category
+**Question:** "What is the average actual cost by category?"
 - **Display Type:** bar
 - **Use Case:** Understand compensation patterns by incident type
 - **Expected Result:** Average costs per incident category
@@ -92,11 +92,11 @@
 
 ## 📈 PERFORMANCE ANALYTICS (4 Questions)
 
-### 13. Department Accountability
-**Question:** "Which department has the most incidents?"
+### 13. Category Performance
+**Question:** "Which category has the most incidents?"
 - **Display Type:** bar
-- **Use Case:** Identify departments needing improvement
-- **Expected Result:** Ranked list of departments by incident count
+- **Use Case:** Identify categories needing improvement
+- **Expected Result:** Ranked list of categories by incident count
 
 ### 14. Severity Analysis
 **Question:** "Show incident breakdown by severity"
@@ -108,20 +108,20 @@
 **Question:** "Count incidents by category"
 - **Display Type:** bar
 - **Use Case:** Identify most common types of guest issues
-- **Expected Result:** Bar chart of categories (Room Cleanliness, Noise, Amenities, etc.)
+- **Expected Result:** Bar chart of categories (Service Quality, Food & Beverage, Systems, etc.)
 
-### 16. Recent Critical Issues
-**Question:** "Show recent Housekeeping incidents with medium severity"
+### 16. Recent Medium Priority Issues
+**Question:** "Show recent incidents with medium severity"
 - **Display Type:** table
-- **Use Case:** Monitor specific department's performance
-- **Expected Result:** Filtered list of housekeeping issues
+- **Use Case:** Monitor medium-priority performance
+- **Expected Result:** Filtered list of medium severity issues
 
 ---
 
 ## 🎯 STRATEGIC INSIGHTS (4 Questions)
 
 ### 17. Resolution Tracking
-**Question:** "How many incidents were completed in the last month?"
+**Question:** "How many incidents were completed?"
 - **Display Type:** metric
 - **Use Case:** Measure incident closure rate
 - **Expected Result:** Count of resolved incidents
@@ -154,7 +154,7 @@
 ### Demo Flow:
 1. **Start with metrics** (Q1, Q5) - Show quick KPIs
 2. **Show critical issues** (Q8, Q11) - Demonstrate urgency handling
-3. **Department analysis** (Q3, Q13) - Identify problem areas
+3. **Category analysis** (Q3, Q13) - Identify problem areas
 4. **Financial impact** (Q10, Q12) - Connect to bottom line
 5. **Trend analysis** (Q14, Q18) - Strategic insights
 
@@ -174,7 +174,7 @@
 curl -X POST http://localhost:8080/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "How many high severity incidents in the last 30 days?",
+    "text": "How many high severity incidents are there?",
     "context": {
       "language": "en",
       "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec",
@@ -207,12 +207,12 @@ curl -X POST http://localhost:8080/nlq/execute \
   }'
 ```
 
-### Example 3: Bar Chart Display (Q3 - Department Count)
+### Example 3: Bar Chart Display (Q3 - Category Count)
 ```bash
 curl -X POST http://localhost:8080/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "Count incidents by department",
+    "text": "Count incidents by category",
     "context": {
       "language": "en",
       "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec",
@@ -254,7 +254,7 @@ curl -X POST http://localhost:8080/nlq/execute \
 **Q1: Daily Operations Dashboard (metric)**
 ```json
 {
-  "text": "How many incidents were reported today?",
+  "text": "How many incidents do we have?",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -277,10 +277,10 @@ curl -X POST http://localhost:8080/nlq/execute \
 }
 ```
 
-**Q3: Property-Wide Summary (bar)**
+**Q3: Category-Wide Summary (bar)**
 ```json
 {
-  "text": "Count incidents by department",
+  "text": "Count incidents by category",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -306,7 +306,7 @@ curl -X POST http://localhost:8080/nlq/execute \
 **Q5: Severity Distribution (metric)**
 ```json
 {
-  "text": "How many high severity incidents in the last 30 days?",
+  "text": "How many high severity incidents are there?",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -318,10 +318,10 @@ curl -X POST http://localhost:8080/nlq/execute \
 
 ### GUEST EXPERIENCE
 
-**Q6: Room Service Issues (table)**
+**Q6: Category Analysis (table)**
 ```json
 {
-  "text": "Show me Room Service incidents from this week",
+  "text": "Show me incidents for Food and Beverage category",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -331,15 +331,15 @@ curl -X POST http://localhost:8080/nlq/execute \
 }
 ```
 
-**Q7: Housekeeping Performance (pie)**
+**Q7: Common Issue Patterns (bar)**
 ```json
 {
-  "text": "What are the most common Room Cleanliness incidents?",
+  "text": "What are the most common incident categories?",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
   "model": {"max_tokens": 512},
-  "display": {"type": "pie"},
+  "display": {"type": "bar"},
   "trace": {"source": "gm-demo"}
 }
 ```
@@ -357,10 +357,10 @@ curl -X POST http://localhost:8080/nlq/execute \
 }
 ```
 
-**Q9: Room-Specific Issues (table)**
+**Q9: Location-Specific Issues (table)**
 ```json
 {
-  "text": "Show me all incidents at room 1018",
+  "text": "Show me all incidents at location Room 1018",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -388,7 +388,7 @@ curl -X POST http://localhost:8080/nlq/execute \
 **Q11: High-Cost Incidents (table)**
 ```json
 {
-  "text": "Show me the top 5 incidents by actual cost",
+  "text": "Show me the incidents with highest actual cost",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -398,10 +398,10 @@ curl -X POST http://localhost:8080/nlq/execute \
 }
 ```
 
-**Q12: Compensation Analysis (bar)**
+**Q12: Cost by Category (bar)**
 ```json
 {
-  "text": "What is the average actual cost for completed incidents by category?",
+  "text": "What is the average actual cost by category?",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -413,10 +413,10 @@ curl -X POST http://localhost:8080/nlq/execute \
 
 ### PERFORMANCE ANALYTICS
 
-**Q13: Department Accountability (bar)**
+**Q13: Category Performance (bar)**
 ```json
 {
-  "text": "Which department has the most incidents?",
+  "text": "Which category has the most incidents?",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -452,10 +452,10 @@ curl -X POST http://localhost:8080/nlq/execute \
 }
 ```
 
-**Q16: Recent Critical Issues (table)**
+**Q16: Recent Medium Priority Issues (table)**
 ```json
 {
-  "text": "Show recent Housekeeping incidents with medium severity",
+  "text": "Show recent incidents with medium severity",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -470,7 +470,7 @@ curl -X POST http://localhost:8080/nlq/execute \
 **Q17: Resolution Tracking (metric)**
 ```json
 {
-  "text": "How many incidents were completed in the last month?",
+  "text": "How many incidents were completed?",
   "context": {"language": "en", "property_uuid": "c0abc579-6ef4-47a3-8290-16cf26964aec", "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"},
   "sql": {"dialect": "athena"},
   "execution": {"dry_run": false, "max_rows": 100},
@@ -528,9 +528,9 @@ curl -X POST http://localhost:8080/nlq/execute \
 | "How many..." | metric | Single KPI value |
 | "Show breakdown by..." | pie/bar | Category distribution |
 | "Show me..." (list) | table | Detailed records |
-| "Top X..." | bar/table | Ranked comparison |
+| "Top X..." / "highest..." | bar/table | Ranked comparison |
 | "Trend over time" | line | Time series visualization |
-| "Which department..." | bar | Categorical comparison |
+| "Which category..." | bar | Categorical comparison |
 
 ---
 

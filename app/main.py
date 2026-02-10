@@ -12,6 +12,7 @@ from app.athena_client import execute_query
 from app.utils import gen_request_id
 from app.request_logger import log_request, get_logs, get_log_count
 from app.display_hint import get_display_type
+from app.chart_formatter import format_for_chart
 from app.query_suggestions import generate_query_suggestions, get_schema_summary
 from app.input_validator import validate_nlq_input, ValidationResult
 from app.rate_limiter import get_rate_limiter, RateLimiter, RateLimitConfig
@@ -222,6 +223,12 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
         else:
             display_type = "table"
 
+        # Step 9: Format data for charts if needed
+        chart_data = None
+        if executed and execution_data and display_type in ["bar", "pie", "line", "metric"]:
+            chart_data = format_for_chart(execution_data, display_type)
+            logger.info(f"Chart data formatted for {display_type}: {chart_data is not None}")
+
         total_latency_ms = int((time.time() - start_time) * 1000)
 
         response = {
@@ -236,7 +243,8 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
                 "data": execution_data
             },
             "display": {
-                "type": display_type
+                "type": display_type,
+                "chart_data": chart_data
             },
             "explanation": result["explanation"],
             "trace": {

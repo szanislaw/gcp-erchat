@@ -8,31 +8,30 @@ from typing import Dict, Any, List
 # Maps natural language queries to their desired display types
 QUERY_DISPLAY_TYPE_MAP = {
     # OPERATIONAL OVERVIEW
-    "how many incidents were reported today?": "metric",
+    "how many incidents do we have?": "metric",
     "show me all pending incidents": "table",
-    "count incidents by department": "bar",
+    "count incidents by category": "bar",
     "show incidents from last 7 days": "table",
-    "how many high severity incidents in the last 30 days?": "metric",
+    "how many high severity incidents are there?": "metric",
     
     # GUEST EXPERIENCE
-    "show me room service incidents from this week": "table",
-    "what are the most common room cleanliness incidents?": "pie",
+    "show me incidents for food and beverage category": "table",
+    "what are the most common incident categories?": "bar",
     "show high severity incidents that are still pending": "table",
-    "show me all incidents at room 1018": "table",
+    "show me all incidents at location room 1018": "table",
     
     # FINANCIAL IMPACT
     "what is the total actual cost of all incidents?": "metric",
-    "show me the top 5 incidents by actual cost": "table",
-    "what is the average actual cost for completed incidents by category?": "bar",
+    "show me the incidents with highest actual cost": "table",
+    "what is the average actual cost by category?": "bar",
     
     # PERFORMANCE ANALYTICS
-    "which department has the most incidents?": "bar",
+    "which category has the most incidents?": "bar",
     "show incident breakdown by severity": "pie",
-    "count incidents by category": "bar",
-    "show recent housekeeping incidents with medium severity": "table",
+    "show recent incidents with medium severity": "table",
     
     # STRATEGIC INSIGHTS
-    "how many incidents were completed in the last month?": "metric",
+    "how many incidents were completed?": "metric",
     "how many incidents does each property have?": "bar",
     "show me incidents ordered by severity": "table",
     "count incidents by status": "pie",
