@@ -150,14 +150,14 @@ Natural Language Query
 ```
 
 ## Overview
-40 demonstration questions showcasing all 5 display types using the `incident_combine` table from Athena.
+60 demonstration questions showcasing all 5 display types using the `incident_combine` table from Athena.
 
 **Display Type Distribution:**
-- 8 TABLE displays (detailed records)
-- 8 METRIC displays (KPI values)
-- 8 BAR charts (category comparisons)
-- 8 PIE charts (distribution breakdowns)
-- 8 LINE charts (time series trends)
+- 12 TABLE displays (detailed records)
+- 12 METRIC displays (KPI values)
+- 12 BAR charts (category comparisons)
+- 12 PIE charts (distribution breakdowns)
+- 12 LINE charts (time series trends)
 
 ---
 
@@ -195,6 +195,22 @@ Natural Language Query
 **Purpose:** Review high-cost incidents for budget analysis  
 **Expected Columns:** actual_cost, category_name, severity_name, department_name, description
 
+### 9. Show recent incidents
+**Purpose:** Review incidents from the last 7 days  
+**Expected Columns:** created_date, category_name, status_name, severity_name, description
+
+### 10. Show incidents by severity and status
+**Purpose:** Cross-reference severity with completion status  
+**Expected Columns:** severity_name, status_name, category_name, department_name, actual_cost
+
+### 11. Show maintenance incidents
+**Purpose:** Review maintenance-related incidents  
+**Expected Columns:** category_name, location_name, status_name, actual_cost, description
+
+### 12. Show incidents with description
+**Purpose:** Browse incidents with detailed notes  
+**Expected Columns:** description, category_name, severity_name, status_name, created_date
+
 ---
 
 ## METRIC Display (4 questions)
@@ -230,6 +246,22 @@ Natural Language Query
 ### 12. How many completed incidents
 **Purpose:** Completed incident count for productivity tracking  
 **Expected Result:** Single COUNT(*) WHERE status_name = 'Completed'
+
+### 13. How many cancelled incidents
+**Purpose:** Cancelled incident count for tracking  
+**Expected Result:** Single COUNT(*) WHERE status_name = 'Cancelled'
+
+### 14. What is the maximum cost
+**Purpose:** Highest incident cost for outlier analysis  
+**Expected Result:** Single MAX(actual_cost) value
+
+### 15. How many incidents today
+**Purpose:** Today's incident count for daily tracking  
+**Expected Result:** Single COUNT(*) WHERE created_date = today
+
+### 16. What is the minimum cost
+**Purpose:** Lowest incident cost for baseline analysis  
+**Expected Result:** Single MIN(actual_cost) WHERE actual_cost > 0
 
 ---
 
@@ -267,6 +299,22 @@ Natural Language Query
 **Purpose:** Compare incidents across guest profiles  
 **Expected Result:** profile_name with COUNT(*) grouped
 
+### 17. Cost by department
+**Purpose:** Compare total spending across departments  
+**Expected Result:** department_name with SUM(actual_cost) grouped
+
+### 18. Count by severity
+**Purpose:** Compare high vs medium vs low severity counts  
+**Expected Result:** severity_name with COUNT(*) grouped
+
+### 19. Count by temperament
+**Purpose:** Compare guest temperament across incidents  
+**Expected Result:** temperament_text with COUNT(*) grouped
+
+### 20. Average cost by status
+**Purpose:** Compare average spending by incident status  
+**Expected Result:** status_name with AVG(actual_cost) grouped
+
 ---
 
 ## PIE Chart Display (4 questions)
@@ -303,41 +351,73 @@ Natural Language Query
 **Purpose:** Distribution of high severity by category  
 **Expected Result:** category_name with COUNT(*) WHERE severity = 'High'
 
+### 21. Location distribution
+**Purpose:** Incident distribution by location  
+**Expected Result:** location_name with COUNT(*) grouped (5-10 categories)
+
+### 22. Profile distribution
+**Purpose:** Incident distribution by guest profile  
+**Expected Result:** profile_name with COUNT(*) grouped (5-10 categories)
+
+### 23. Property distribution
+**Purpose:** Incident distribution across properties  
+**Expected Result:** property_name with COUNT(*) grouped (2-5 categories)
+
+### 24. Cost range distribution
+**Purpose:** Distribution by cost brackets (low/medium/high)  
+**Expected Result:** Cost ranges with COUNT(*) grouped
+
 ---
 
-## LINE Chart Display (8 questions)
+## LINE Chart Display (12 questions)
 
-### 21. Incident trend last 30 days
+### 25. Incident trend last 30 days
 **Purpose:** Daily incident creation trend over past month  
 **Expected Result:** date with COUNT(*) grouped by day
 
-### 22. Daily incident count
+### 26. Daily incident count
 **Purpose:** Daily snapshot of incident counts  
 **Expected Result:** snapshotdate with COUNT(*) grouped by date
 
-### 23. Completion trend
+### 27. Completion trend
 **Purpose:** Daily incident resolution trend  
 **Expected Result:** completed_date with COUNT(*) grouped by day
 
-### 24. Incidents per day
+### 28. Incidents per day
 **Purpose:** When incidents actually occurred (time series)  
 **Expected Result:** incident_time with COUNT(*) grouped by day
 
-### 25. Weekly incident trend
+### 29. Weekly incident trend
 **Purpose:** Weekly aggregation of incident counts  
 **Expected Result:** week with COUNT(*) grouped by week
 
-### 26. High severity trend
+### 30. High severity trend
 **Purpose:** Track high severity incidents over time  
 **Expected Result:** date with COUNT(*) WHERE severity = 'High' grouped by day
 
-### 27. Cost trend over time
+### 31. Cost trend over time
 **Purpose:** Track incident costs over time  
 **Expected Result:** date with SUM(actual_cost) grouped by day
 
-### 28. Vip incident trend
+### 32. Vip incident trend
 **Purpose:** Track VIP incidents over time  
 **Expected Result:** date with COUNT(*) WHERE vip = 'Yes' grouped by day
+
+### 33. Monthly incident trend
+**Purpose:** Monthly aggregation of incident counts  
+**Expected Result:** month with COUNT(*) grouped by month
+
+### 34. Cancellation trend
+**Purpose:** Track cancelled incidents over time  
+**Expected Result:** cancelled_date with COUNT(*) grouped by day
+
+### 35. Department trend over time
+**Purpose:** Track incidents by department over time  
+**Expected Result:** date with COUNT(*) grouped by department and day
+
+### 36. Severity trend by month
+**Purpose:** Track severity distribution over months  
+**Expected Result:** month with COUNT(*) grouped by severity and month
 
 ---
 
@@ -379,7 +459,7 @@ curl -X POST http://localhost:8000/nlq/execute \
 9. **LINE** (#21) - Incident trend last 30 days
 10. **LINE** (#27) - Cost trend over time
 
-**Full Demo (40 questions):**
+**Full Demo (60 questions):**
 Cycle through all questions alternating display types to showcase comprehensive capabilities.
 
 This creates a narrative: KPI overview → detailed records → comparisons → distributions → trends

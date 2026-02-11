@@ -115,9 +115,9 @@ def get_display_type_from_question(question: str) -> Optional[str]:
 # - line: Time series trends (GROUP BY date with aggregation)
 # - metric: Single value (COUNT, SUM, AVG without GROUP BY)
 #
-# DEMO SET: 40 questions - 8 of each display type
+# DEMO SET: 60 questions - 12 of each display type
 QUERY_DISPLAY_TYPE_MAP = {
-    # === TABLE DISPLAY (8 questions - detailed rows) ===
+    # === TABLE DISPLAY (12 questions - detailed rows) ===
     "show high severity incidents": "table",
     "show incidents with compensation": "table",
     "show vip incidents": "table",
@@ -126,8 +126,12 @@ QUERY_DISPLAY_TYPE_MAP = {
     "show incidents by profile name": "table",
     "show cancelled incidents": "table",
     "show expensive incidents": "table",
+    "show recent incidents": "table",
+    "show incidents by severity and status": "table",
+    "show maintenance incidents": "table",
+    "show incidents with description": "table",
     
-    # === METRIC DISPLAY (8 questions - single KPI values) ===
+    # === METRIC DISPLAY (12 questions - single KPI values) ===
     "how many total incidents": "metric",
     "what is the total cost": "metric",
     "how many vip incidents": "metric",
@@ -136,8 +140,12 @@ QUERY_DISPLAY_TYPE_MAP = {
     "how many high severity incidents": "metric",
     "what is the average actual cost": "metric",
     "how many completed incidents": "metric",
+    "how many cancelled incidents": "metric",
+    "what is the maximum cost": "metric",
+    "how many incidents today": "metric",
+    "what is the minimum cost": "metric",
     
-    # === BAR CHART DISPLAY (8 questions - category comparisons) ===
+    # === BAR CHART DISPLAY (12 questions - category comparisons) ===
     "count by category": "bar",
     "count by department": "bar",
     "cost by severity": "bar",
@@ -146,8 +154,12 @@ QUERY_DISPLAY_TYPE_MAP = {
     "count by status": "bar",
     "average cost by category": "bar",
     "count by profile": "bar",
+    "cost by department": "bar",
+    "count by severity": "bar",
+    "count by temperament": "bar",
+    "average cost by status": "bar",
     
-    # === PIE CHART DISPLAY (8 questions - distribution breakdown) ===
+    # === PIE CHART DISPLAY (12 questions - distribution breakdown) ===
     "status distribution": "pie",
     "severity breakdown": "pie",
     "vip percentage": "pie",
@@ -156,8 +168,12 @@ QUERY_DISPLAY_TYPE_MAP = {
     "category breakdown": "pie",
     "compensation distribution": "pie",
     "high severity distribution": "pie",
+    "location distribution": "pie",
+    "profile distribution": "pie",
+    "property distribution": "pie",
+    "cost range distribution": "pie",
     
-    # === LINE CHART DISPLAY (8 questions - time series trends) ===
+    # === LINE CHART DISPLAY (12 questions - time series trends) ===
     "incident trend last 30 days": "line",
     "daily incident count": "line",
     "completion trend": "line",
@@ -166,6 +182,10 @@ QUERY_DISPLAY_TYPE_MAP = {
     "high severity trend": "line",
     "cost trend over time": "line",
     "vip incident trend": "line",
+    "monthly incident trend": "line",
+    "cancellation trend": "line",
+    "department trend over time": "line",
+    "severity trend by month": "line",
 }
 
 
