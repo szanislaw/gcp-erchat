@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from app.models import NLQRequest
-from app.prompt import build_prompt
+from app.prompt import build_prompt, build_correction_prompt
 from app.sqlcoder import run_sqlcoder, load_model
 from app.security import validate_sql
 from app.athena_client import execute_query
@@ -45,7 +45,17 @@ async def lifespan(app: FastAPI):
     logger.info("[STARTUP] Preloading ML model...")
     load_model()
     logger.info("[STARTUP] Model preloaded successfully! Ready to handle queries.")
-    
+
+    # Pre-load Athena column values for enum injection
+    from app.schema_loader import load_column_values
+    from app.athena_config import ATHENA_TARGETS
+    for target in ATHENA_TARGETS:
+        try:
+            load_column_values(target)
+            logger.info(f"[STARTUP] Column values loaded for target: {target}")
+        except Exception as e:
+            logger.warning(f"[STARTUP] Could not preload column values for {target}: {e}")
+
     # Initialize rate limiter
     rate_limiter = get_rate_limiter()
     logger.info(f"[STARTUP] Rate limiter initialized: {rate_limiter.config.requests_per_second} req/s, burst {rate_limiter.config.burst_size}")
@@ -198,22 +208,57 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             req.sql.dialect
         )
         
-        # Step 7: Execute Query (if not dry run)
+        # Step 7: Execute Query (if not dry run) with self-correction loop
         execution_data = None
         executed = False
+        correction_attempts = 0
+        MAX_CORRECTIONS = 2
 
         if not req.execution.dry_run:
-            raw_data = await loop.run_in_executor(
-                _executor,
-                lambda: execute_query(
-                    sql=sql,
-                    target_name=athena_target,
-                    max_rows=req.execution.max_rows
-                )
-            )
-            # Format column names for better readability
-            execution_data = format_execution_data(raw_data)
-            executed = True
+            current_sql = sql
+            for attempt in range(MAX_CORRECTIONS + 1):
+                try:
+                    raw_data = await loop.run_in_executor(
+                        _executor,
+                        lambda s=current_sql: execute_query(
+                            sql=s,
+                            target_name=athena_target,
+                            max_rows=req.execution.max_rows
+                        )
+                    )
+                    execution_data = format_execution_data(raw_data)
+                    executed = True
+                    sql = current_sql  # commit the working SQL to the response
+                    break
+                except RuntimeError as athena_error:
+                    if attempt >= MAX_CORRECTIONS:
+                        raise
+                    error_msg = str(athena_error)
+                    logger.warning(
+                        f"Athena execution failed (attempt {attempt + 1}/{MAX_CORRECTIONS}), "
+                        f"running self-correction. Error: {error_msg[:200]}"
+                    )
+                    correction_prompt = build_correction_prompt(
+                        text=sanitized_text,
+                        context=req.context,
+                        sql=req.sql,
+                        athena_target=athena_target,
+                        failed_sql=current_sql,
+                        error_message=error_msg,
+                        property_uuid=req.context.property_uuid,
+                        user_uuid=req.context.user_uuid,
+                    )
+                    correction_result = await loop.run_in_executor(
+                        _executor,
+                        _run_model_inference,
+                        correction_prompt,
+                        req.model.max_tokens,
+                    )
+                    corrected_sql = fix_table_names(correction_result["query"], allowed_tables)
+                    corrected_sql = validate_sql(corrected_sql, allowed_tables, req.sql.dialect)
+                    correction_attempts += 1
+                    logger.info(f"Self-correction {correction_attempts}: new SQL: {corrected_sql[:120]}")
+                    current_sql = corrected_sql
 
         # Step 8: Determine Display Type
         # Priority: 1) User-provided display.type, 2) Question pattern matching, 3) SQL auto-detection
@@ -264,7 +309,8 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
                 "total_latency_ms": total_latency_ms,
                 "athena_target": athena_target,
                 "allowed_tables": allowed_tables,
-                "input_warnings": validation_result.warnings
+                "input_warnings": validation_result.warnings,
+                "correction_attempts": correction_attempts
             }
         }
 

@@ -6,20 +6,15 @@ pydantic
 # Environment variables
 python-dotenv
 
-# Streamlit UI
-streamlit
-pandas
-requests
-plotly
-
 # AWS integration
 boto3
 
 # ML/AI dependencies
 torch
 transformers
+bitsandbytes
 
 # Optional: accelerators and tokenizers (may be required by transformers)
 accelerate
 sentencepiece
-protobuf    
+protobuf

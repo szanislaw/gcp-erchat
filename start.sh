@@ -1,48 +1,43 @@
 #!/bin/bash
-# start.sh - Start the complete NLQ to SQL application
-# This starts both the FastAPI backend and Streamlit UI
+# start.sh - Start the NLQ to SQL API
 
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 echo -e "${BLUE}============================================${NC}"
-echo -e "${BLUE}   NLQ to SQL Application Startup${NC}"
+echo -e "${BLUE}   NLQ to SQL API Startup${NC}"
 echo -e "${BLUE}============================================${NC}"
 echo ""
 
-# Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
-# 1. Check if .env file exists
-echo -e "${YELLOW}[1/6] Checking environment configuration...${NC}"
+# 1. Check .env
+echo -e "${YELLOW}[1/4] Checking environment configuration...${NC}"
 if [ ! -f ".env" ]; then
     echo -e "${RED}✗ .env file not found${NC}"
-    echo "   Creating from .env.example..."
     if [ -f ".env.example" ]; then
         cp .env.example .env
-        echo -e "${YELLOW}⚠ Created .env file - please configure it with your AWS credentials${NC}"
-        echo -e "${YELLOW}⚠ Edit .env and then run this script again${NC}"
-        exit 1
+        echo -e "${YELLOW}⚠ Created .env from .env.example — configure AWS credentials then re-run${NC}"
     else
         echo -e "${RED}✗ .env.example not found${NC}"
-        exit 1
     fi
+    exit 1
 fi
 echo -e "${GREEN}✓ Environment file found${NC}"
 echo ""
 
 # 2. Authentication note
-echo -e "${YELLOW}[2/6] Authentication check...${NC}"
+echo -e "${YELLOW}[2/4] Authentication check...${NC}"
 echo -e "${GREEN}✓ Authentication handled by external token service${NC}"
 echo ""
 
 # 3. Check Python dependencies
-echo -e "${YELLOW}[3/6] Checking Python dependencies...${NC}"
+echo -e "${YELLOW}[3/4] Checking Python dependencies...${NC}"
 if ! python -c "import fastapi" 2>/dev/null; then
     echo -e "${YELLOW}⚠ Dependencies not installed. Installing...${NC}"
     pip install -r requirements.txt
@@ -54,85 +49,41 @@ fi
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 echo ""
 
-# 4. Stop any existing processes
-echo -e "${YELLOW}[4/6] Stopping existing processes...${NC}"
+# 4. Start FastAPI
+echo -e "${YELLOW}[4/4] Starting FastAPI backend...${NC}"
+
+# Stop any existing process
 pkill -f "uvicorn app.main:app" 2>/dev/null
-pkill -f "streamlit run" 2>/dev/null
-sleep 2
-
-# Force kill if still running
-if pgrep -f "uvicorn app.main:app" > /dev/null; then
-    echo "   Force stopping FastAPI..."
-    pkill -9 -f "uvicorn app.main:app" 2>/dev/null
-fi
-if pgrep -f "streamlit run" > /dev/null; then
-    echo "   Force stopping Streamlit..."
-    pkill -9 -f "streamlit run" 2>/dev/null
-fi
 sleep 1
-echo -e "${GREEN}✓ Old processes stopped${NC}"
-echo ""
+if pgrep -f "uvicorn app.main:app" > /dev/null; then
+    pkill -9 -f "uvicorn app.main:app" 2>/dev/null
+    sleep 1
+fi
 
-# 5. Start FastAPI Backend
-echo -e "${YELLOW}[5/6] Starting FastAPI backend...${NC}"
-
-# Create logs directory if it doesn't exist
 mkdir -p logs
-
-# Start FastAPI in background
 nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > logs/api.log 2>&1 &
 FASTAPI_PID=$!
 echo $FASTAPI_PID > logs/api.pid
 
-# Wait and verify it started
 sleep 3
 if ps -p $FASTAPI_PID > /dev/null; then
     echo -e "${GREEN}✓ FastAPI started (PID: $FASTAPI_PID)${NC}"
-    echo "   URL: http://localhost:8000"
-    echo "   Logs: tail -f logs/api.log"
 else
-    echo -e "${RED}✗ FastAPI failed to start${NC}"
-    echo "   Check logs: cat logs/api.log"
+    echo -e "${RED}✗ FastAPI failed to start — check logs/api.log${NC}"
     exit 1
 fi
 echo ""
 
-# 6. Start Streamlit UI
-echo -e "${YELLOW}[6/6] Starting Streamlit UI...${NC}"
-
-# Start Streamlit in background
-nohup streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0 > logs/streamlit.log 2>&1 &
-STREAMLIT_PID=$!
-echo $STREAMLIT_PID > logs/streamlit.pid
-
-# Wait and verify it started
-sleep 3
-if ps -p $STREAMLIT_PID > /dev/null; then
-    echo -e "${GREEN}✓ Streamlit started (PID: $STREAMLIT_PID)${NC}"
-    echo "   URL: http://localhost:8501"
-    echo "   Logs: tail -f logs/streamlit.log"
-else
-    echo -e "${RED}✗ Streamlit failed to start${NC}"
-    echo "   Check logs: cat logs/streamlit.log"
-    # Don't exit, API is still running
-fi
-echo ""
-
-# Summary
 echo -e "${BLUE}============================================${NC}"
-echo -e "${GREEN}✓ Application started successfully!${NC}"
+echo -e "${GREEN}✓ API started successfully!${NC}"
 echo -e "${BLUE}============================================${NC}"
 echo ""
-echo "📡 Services:"
-echo "   • FastAPI Backend: http://localhost:8000"
-echo "   • Streamlit UI:    http://localhost:8501"
+echo "Services:"
+echo "   • FastAPI: http://localhost:8000"
+echo "   • Docs:    http://localhost:8000/docs"
 echo ""
-echo "📋 Management:"
-echo "   • Stop all:   ./stop.sh"
-echo "   • View logs:  tail -f logs/*.log"
-echo "   • API status: curl http://localhost:8000/nlq/health"
-echo ""
-echo "🔐 Process IDs:"
-echo "   • FastAPI:   $FASTAPI_PID (logs/api.pid)"
-echo "   • Streamlit: $STREAMLIT_PID (logs/streamlit.pid)"
+echo "Management:"
+echo "   • Stop:    ./stop.sh"
+echo "   • Logs:    tail -f logs/api.log"
+echo "   • Health:  curl http://localhost:8000/health"
 echo ""

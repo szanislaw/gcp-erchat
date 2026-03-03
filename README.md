@@ -4,7 +4,7 @@ Production-ready FastAPI service that converts natural language questions into A
 
 ## ✨ Key Features
 
-- 🤖 **AI-Powered SQL Generation**: Uses Qwen-2.5-3b-Text_to_SQL model for accurate NLQ to SQL conversion
+- 🤖 **AI-Powered SQL Generation**: Uses `defog/sqlcoder-7b-2` — state-of-the-art NL-to-SQL model (outperforms GPT-4 on SQL benchmarks)
 - 🛡️ **Property-Based Access Control**: Pre-authorized property UUIDs drive data access
 - 🔧 **Automatic SQL Fixing**: Post-processes generated SQL to fix date comparisons and type mismatches
 - 📊 **Smart Display Hints**: Automatically recommends chart types (line, bar, pie, metric, table)
@@ -20,26 +20,22 @@ Production-ready FastAPI service that converts natural language questions into A
 ### Option 1: Automated Startup (Recommended)
 
 ```bash
-# Start complete application (API + UI)
+# Start API
 ./start.sh
 
-# Stop all services
+# Stop API
 ./stop.sh
 ```
 
 ### Option 2: Manual Startup
 
 ```bash
-# Start API server
 uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# Start Streamlit UI (in another terminal)
-streamlit run streamlit_app.py --server.port 8501
 ```
 
 **Services:**
 - API: `http://localhost:8000`
-- Streamlit UI: `http://localhost:8501`
+- Docs: `http://localhost:8000/docs`
 
 ## 🌐 Remote Server Access
 
@@ -142,16 +138,10 @@ axios.post(url, payload)
   });
 ```
 
-### Accessing the Streamlit UI
-```
-http://128.106.57.220:8501
-```
-
 ### Server Configuration Notes
 
-**Important:** Ensure the server firewall allows inbound connections on ports:
+**Important:** Ensure the server firewall allows inbound connections on port:
 - **8000** - FastAPI backend
-- **8501** - Streamlit UI
 
 **For production deployments:**
 - Use HTTPS with SSL/TLS certificates (consider using nginx as reverse proxy)
@@ -641,7 +631,7 @@ All API requests are logged to `logs/api_requests.json`:
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │        SQL Generator (sqlcoder.py)                               │
-│  • Qwen-2.5-3b-Text_to_SQL model (3B params)                    │
+│  • defog/sqlcoder-7b-2 model (7B params, 4-bit quantized)       │
 │  • Thread-safe model access with lock                           │
 │  • LRU cache (500 queries, MD5 keys)                           │
 └────────────────────────────┬────────────────────────────────────┘
@@ -766,9 +756,6 @@ AWS_REGION=ap-east-1
 # API Configuration
 API_PORT=8000
 API_HOST=0.0.0.0
-
-# Streamlit Configuration
-STREAMLIT_PORT=8501
 ```
 
 **Alternative:** Use AWS CLI configuration (recommended for development)
@@ -1231,7 +1218,8 @@ Key packages:
 - `boto3==1.29.7` - AWS SDK
 - `pyathena==3.0.10` - Athena driver
 - `pydantic==2.5.0` - Data validation
-- `transformers==4.35.2` - NLQ model (Qwen-2.5-3b)
+- `transformers` - NLQ model (defog/sqlcoder-7b-2)
+- `bitsandbytes` - 4-bit quantization
 - `torch==2.1.1` - PyTorch for model inference
 - `python-dotenv==1.0.0` - Environment variable loading
 
@@ -1278,10 +1266,9 @@ curl -X POST http://localhost:8000/nlq/execute \
 **Model Configuration** (`app/sqlcoder.py`):
 ```python
 # Model loading options
-model_name = "Ellbendls/Qwen-2.5-3b-Text_to_SQL"
-torch_dtype = torch.float16  # FP16 for memory efficiency
+model_name = "defog/sqlcoder-7b-2"
+quantization_config = BitsAndBytesConfig(load_in_4bit=True)  # ~4GB VRAM
 device_map = "auto"  # Automatic GPU/CPU mapping
-low_cpu_mem_usage = True  # Memory optimization
 ```
 
 **Cache Settings** (`app/sqlcoder.py`):
@@ -1331,7 +1318,6 @@ ATHENA_TARGETS = {
 
 See `/documentation` folder for:
 - Performance optimization guides
-- Streamlit UI documentation
 - Deployment procedures
 - Test questions and examples
 
@@ -1402,7 +1388,7 @@ curl http://localhost:8000/health | jq .rate_limiter
 
 **View process status:**
 ```bash
-ps aux | grep -E 'uvicorn|streamlit'
+ps aux | grep uvicorn
 ```
 
 **Monitor resource usage:**

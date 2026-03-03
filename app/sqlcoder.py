@@ -64,23 +64,21 @@ def load_model():
         if _model is not None:
             return
 
-        logger.info("[BOOT] Loading Qwen-2.5-3b-Text_to_SQL model (specialized for SQL generation)...")
+        model_name = "defog/sqlcoder-7b-2"
+        logger.info(f"[BOOT] Loading {model_name} (state-of-the-art NL-to-SQL, 4-bit quantized)...")
 
-        model_name = "Ellbendls/Qwen-2.5-3b-Text_to_SQL"
+        from transformers import BitsAndBytesConfig
+        quantization_config = BitsAndBytesConfig(load_in_4bit=True)
 
-        # Use slow tokenizer to avoid corrupted fast tokenizer file
-        _tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
+        _tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         _model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=torch.float16,
+            quantization_config=quantization_config,
             device_map="auto",
-            low_cpu_mem_usage=True  # Memory optimization
         )
 
-        _model.eval()
         logger.info(f"[BOOT] {model_name} loaded successfully!")
-        logger.info(f"[INFO] Model size: ~3B parameters, optimized for text-to-SQL tasks")
 
 
 def fix_date_comparisons(sql: str) -> str:
@@ -269,6 +267,10 @@ def extract_sql(text: str) -> str:
     if not text:
         return ""
 
+    # SQLCoder outputs SQL after the [SQL] marker; grab everything after it
+    if "[SQL]" in text:
+        text = text.split("[SQL]")[-1]
+
     text = text.replace("```sql", "").replace("```", "")
 
     match = SELECT_REGEX.search(text)
@@ -324,33 +326,21 @@ def run_sqlcoder(prompt: str, max_tokens: int) -> dict:
 
     # Use lock for thread-safe model access
     with _model_lock:
-        # Format prompt as chat message for Qwen
-        messages = [{"role": "user", "content": prompt}]
-        formatted_prompt = _tokenizer.apply_chat_template(
-            messages, 
-            tokenize=False, 
-            add_generation_prompt=True
-        )
-        
-        inputs = _tokenizer(formatted_prompt, return_tensors="pt").to(_model.device)
+        inputs = _tokenizer(prompt, return_tensors="pt").to(_model.device)
+        input_length = inputs["input_ids"].shape[1]
 
-        # Generate with torch.inference_mode for efficiency
         with torch.inference_mode():
             outputs = _model.generate(
                 **inputs,
                 max_new_tokens=max_tokens,
                 do_sample=False,
-                temperature=0.0,
-                top_p=1.0,
+                num_beams=4,
                 eos_token_id=_tokenizer.eos_token_id,
-                pad_token_id=_tokenizer.pad_token_id if _tokenizer.pad_token_id else _tokenizer.eos_token_id
+                pad_token_id=_tokenizer.pad_token_id if _tokenizer.pad_token_id else _tokenizer.eos_token_id,
             )
 
-        raw_output = _tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
-    # Remove the input prompt from output
-    if formatted_prompt in raw_output:
-        raw_output = raw_output.replace(formatted_prompt, "").strip()
+        # Decode only the newly generated tokens (exclude the prompt)
+        raw_output = _tokenizer.decode(outputs[0][input_length:], skip_special_tokens=True)
 
     # Log for debugging (reduce verbosity in production)
     logger.debug(f"Raw model output: {raw_output[:200]}...")

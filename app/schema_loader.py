@@ -1,9 +1,13 @@
 import boto3
+import logging
 from typing import Dict, Any
 from app.athena_config import ATHENA_TARGETS
 
+logger = logging.getLogger(__name__)
+
 # In-memory cache to avoid repeated Glue calls
 _SCHEMA_CACHE: Dict[str, Any] = {}
+_COLUMN_VALUES_CACHE: Dict[str, Dict[str, list]] = {}
 
 
 def load_schema(target_name: str) -> Dict[str, Any]:
@@ -84,3 +88,54 @@ def compress_schema(schema: Dict[str, Any]) -> str:
         )
 
     return "\n".join(lines)
+
+
+def schema_to_ddl(schema: Dict[str, Any]) -> str:
+    """Convert schema dict to DDL CREATE TABLE statements (required by SQLCoder)."""
+    statements = []
+    for table_name, meta in schema.items():
+        db = meta.get("database", "")
+        full_name = f"{db}.{table_name}" if db else table_name
+
+        col_defs = []
+        for col in meta.get("columns", []):
+            col_defs.append(f"    {col['name']} {col['type'].upper()}")
+        for part in meta.get("partitions", []):
+            col_defs.append(f"    {part['name']} {part['type'].upper()} -- partition key")
+
+        statements.append(f"CREATE TABLE {full_name} (\n" + ",\n".join(col_defs) + "\n);")
+
+    return "\n\n".join(statements)
+
+
+def load_column_values(target_name: str) -> Dict[str, list]:
+    """
+    Fetch DISTINCT values for categorical columns from Athena.
+    Cached after first load. Returns {column_name: [val1, val2, ...]}
+    """
+    if target_name in _COLUMN_VALUES_CACHE:
+        return _COLUMN_VALUES_CACHE[target_name]
+
+    from app.athena_config import ENUM_COLUMNS
+    from app.athena_client import execute_query
+
+    cfg = ENUM_COLUMNS.get(target_name)
+    if not cfg:
+        return {}
+
+    result: Dict[str, list] = {}
+    table = cfg["table"]
+    limit = cfg["limit"]
+
+    for col in cfg["columns"]:
+        try:
+            sql = f"SELECT DISTINCT {col} FROM {table} WHERE {col} IS NOT NULL ORDER BY {col} LIMIT {limit}"
+            data = execute_query(sql=sql, target_name=target_name, max_rows=limit)
+            values = [row[col] for row in data.get("rows", []) if row.get(col)]
+            result[col] = values
+        except Exception as e:
+            logger.warning(f"Could not load distinct values for {col}: {e}")
+            result[col] = []
+
+    _COLUMN_VALUES_CACHE[target_name] = result
+    return result
