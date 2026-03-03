@@ -30,6 +30,7 @@ python test/test_sqlcoder_date_fixes.py  # SQL post-processing unit tests
 python test/stress_test.py          # Load/stress testing
 python test/debug_query.py          # Debug individual queries
 python test/health_check.py         # Health check verification
+python test/eval_corpus.py          # 38-question NL-to-SQL evaluation corpus (100% pass rate)
 ```
 
 ## Environment Setup
@@ -57,7 +58,7 @@ The `/nlq/execute` endpoint processes requests through a strict sequential pipel
 3. **Athena target resolution** — maps request to `ATHENA_TARGETS` config (`app/athena_config.py`)
 4. **Prompt construction** (`app/prompt.py`) — loads schema from AWS Glue, normalizes query (`app/query_normalizer.py`), injects property UUID access restrictions
 5. **Model inference** (`app/sqlcoder.py`) — runs sqlcoder-7b-2 in ThreadPoolExecutor (non-blocking); has LRU cache (500 entries)
-6. **SQL post-processing** — `fix_table_names()` corrects hallucinated table variants, then `fix_date_comparisons()` and `fix_bigint_date_comparisons()` fix Athena type mismatches
+6. **SQL post-processing** — `fix_table_names()` corrects hallucinated table variants, then `fix_date_comparisons()`, `fix_bigint_date_comparisons()`, and `fix_interval_syntax()` fix Athena type mismatches and convert PostgreSQL `INTERVAL` syntax to `date_add()`
 7. **SQL validation** (`app/security.py`) — blocks forbidden operations (DROP/DELETE/etc.), validates table access
 8. **Athena execution** (`app/athena_client.py`) — optional, skipped when `dry_run=true`
 9. **Display type detection** (`app/display_hint.py`) — priority: user-specified → question pattern matching → SQL structure analysis
@@ -88,6 +89,10 @@ Authentication is handled externally. The API receives pre-authorized `property_
 - Pattern matching — regex rules on the NL question
 - SQL analysis fallback — inspects GROUP BY, aggregation functions, row/column counts
 
+### Self-Correction Loop
+
+On Athena execution failure (`RuntimeError`), the pipeline automatically retries up to **2 times**: generates a correction prompt containing the failed SQL + Athena error message, re-runs model inference, re-validates, and retries. `correction_attempts` is reported in the response trace.
+
 ### Static Web UI
 
 `static/index.html` is served at `/` by the FastAPI app.
@@ -117,7 +122,7 @@ Authentication is handled externally. The API receives pre-authorized `property_
   "execution": { "dry_run": false, "max_rows": 100 },
   "model": { "max_tokens": 256 },
   "display": { "type": "metric" },
-  "trace": { "request_id": "optional-id" }
+  "trace": { "request_id": "optional-id", "source": "manual" }
 }
 ```
 
