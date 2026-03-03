@@ -75,6 +75,11 @@ def extract_tables(sql: str) -> Set[str]:
             # Skip very short names (1-2 chars) that are likely not real tables
             if len(match) <= 2:
                 continue
+
+            # Skip Athena/Presto built-in pseudo-columns and system functions
+            if match.lower() in {'current_date', 'current_time', 'current_timestamp',
+                                   'localtime', 'localtimestamp', 'now'}:
+                continue
             
             found_tables.add(match.lower())
     

@@ -46,16 +46,6 @@ async def lifespan(app: FastAPI):
     load_model()
     logger.info("[STARTUP] Model preloaded successfully! Ready to handle queries.")
 
-    # Pre-load Athena column values for enum injection
-    from app.schema_loader import load_column_values
-    from app.athena_config import ATHENA_TARGETS
-    for target in ATHENA_TARGETS:
-        try:
-            load_column_values(target)
-            logger.info(f"[STARTUP] Column values loaded for target: {target}")
-        except Exception as e:
-            logger.warning(f"[STARTUP] Could not preload column values for {target}: {e}")
-
     # Initialize rate limiter
     rate_limiter = get_rate_limiter()
     logger.info(f"[STARTUP] Rate limiter initialized: {rate_limiter.config.requests_per_second} req/s, burst {rate_limiter.config.burst_size}")

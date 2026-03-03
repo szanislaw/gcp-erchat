@@ -127,6 +127,7 @@ def load_column_values(target_name: str) -> Dict[str, list]:
     table = cfg["table"]
     limit = cfg["limit"]
 
+    failed = []
     for col in cfg["columns"]:
         try:
             sql = f"SELECT DISTINCT {col} FROM {table} WHERE {col} IS NOT NULL ORDER BY {col} LIMIT {limit}"
@@ -135,7 +136,12 @@ def load_column_values(target_name: str) -> Dict[str, list]:
             result[col] = values
         except Exception as e:
             logger.warning(f"Could not load distinct values for {col}: {e}")
-            result[col] = []
+            failed.append(col)
 
-    _COLUMN_VALUES_CACHE[target_name] = result
+    # Only cache when all columns loaded — partial results will be retried on next call
+    if not failed:
+        _COLUMN_VALUES_CACHE[target_name] = result
+    else:
+        logger.warning(f"Skipping cache for {target_name}: {len(failed)} column(s) failed ({failed})")
+
     return result

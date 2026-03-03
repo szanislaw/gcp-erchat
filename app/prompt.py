@@ -101,9 +101,16 @@ Use AWS Athena (PrestoSQL) syntax. Output ONLY the SQL query, no explanation.
 - ALWAYS include LIMIT (max 100)
 - Use ONLY the tables and columns in the schema below — do NOT invent names or append suffixes
 - Categorical values are lowercase in the DB: severity='high'/'medium'/'low', status='pending'/'completed'/'cancelled'
-- snapshotdate is VARCHAR: for date comparisons use date_parse(snapshotdate, '%Y-%m-%d')
-- Use date_add('day', -X, current_date) — do NOT use INTERVAL syntax
-- created_date, incident_time, completed_date, cancelled_date are BIGINT timestamps: use only for ORDER BY, never in WHERE for date filtering
+- snapshotdate is VARCHAR: for ALL date filtering AND date-based GROUP BY use date_parse(snapshotdate, '%Y-%m-%d')
+- Date arithmetic: use date_add('day', -N, current_date) NEVER use INTERVAL syntax in any form
+- Date range filter: ALWAYS use >= date_add('day', -N, current_date). NEVER use date_part() or EXTRACT() to build ranges.
+  Example "last 7 days": WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -7, current_date)
+  Example "last 4 weeks": WHERE date_parse(snapshotdate, '%Y-%m-%d') >= date_add('day', -28, current_date)
+- Year filter: use year(date_parse(snapshotdate, '%Y-%m-%d')) = YYYY, NOT date_part()
+- Monthly trend: GROUP BY date_trunc('month', date_parse(snapshotdate, '%Y-%m-%d'))
+- Weekly trend: GROUP BY date_trunc('week', date_parse(snapshotdate, '%Y-%m-%d'))
+- Daily trend: GROUP BY snapshotdate
+- created_date, incident_time, completed_date, cancelled_date are BIGINT timestamps: use ONLY for ORDER BY, NEVER in WHERE, GROUP BY, or any date function
 - For "recent" without a time period: ORDER BY created_date DESC LIMIT X — no date filter needed
 - property_name = hotel name (e.g. 'The Peninsula Manila'); location_name = room/area within hotel{property_restriction}{entity_context}{enum_hint}"""
 

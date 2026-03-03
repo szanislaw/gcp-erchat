@@ -8,6 +8,7 @@ Enhanced SQL code generation module with:
 
 import time
 import re
+import os
 import torch
 import threading
 import hashlib
@@ -15,6 +16,9 @@ from functools import lru_cache
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from typing import Dict, Optional, Tuple
 import logging
+
+# Reduce CUDA memory fragmentation when processing many sequential requests
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +72,10 @@ def load_model():
         logger.info(f"[BOOT] Loading {model_name} (state-of-the-art NL-to-SQL, 4-bit quantized)...")
 
         from transformers import BitsAndBytesConfig
-        quantization_config = BitsAndBytesConfig(load_in_4bit=True)
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.float16,
+        )
 
         _tokenizer = AutoTokenizer.from_pretrained(model_name)
 
@@ -139,8 +146,49 @@ def fix_date_comparisons(sql: str) -> str:
     
     if fixed_sql != sql:
         logger.debug(f"Fixed date comparison: {sql[:100]}... → {fixed_sql[:100]}...")
-    
+
     return fixed_sql
+
+
+def fix_interval_syntax(sql: str) -> str:
+    """
+    Convert PostgreSQL-style INTERVAL arithmetic to Athena date_add() calls.
+
+    Athena (Presto) does not support:
+      current_date - INTERVAL 'N days'
+      current_date + INTERVAL 'N days'
+
+    Converts to:
+      date_add('day', -N, current_date)
+      date_add('day', N, current_date)
+
+    Handles: 'N day', 'N days', 'N week', 'N weeks', 'N month', 'N months'
+    """
+    if not sql or "interval" not in sql.lower():
+        return sql
+
+    _UNIT_MAP = {
+        "day": "day", "days": "day",
+        "week": "week", "weeks": "week",
+        "month": "month", "months": "month",
+    }
+
+    def _replace(match: re.Match) -> str:
+        sign = match.group(1)  # '+' or '-'
+        amount = int(match.group(2))
+        unit_raw = match.group(3).lower()
+        unit = _UNIT_MAP.get(unit_raw, unit_raw)
+        delta = amount if sign == "+" else -amount
+        return f"date_add('{unit}', {delta}, current_date)"
+
+    pattern = re.compile(
+        r"current_date\s*([+-])\s*INTERVAL\s*['\"](\d+)\s+(\w+)['\"]",
+        re.IGNORECASE,
+    )
+    fixed = pattern.sub(_replace, sql)
+    if fixed != sql:
+        logger.info("Converted INTERVAL arithmetic to date_add() for Athena compatibility")
+    return fixed
 
 
 def _looks_like_date_expression(expr: str) -> bool:
@@ -284,6 +332,8 @@ def extract_sql(text: str) -> str:
     sql = fix_date_comparisons(sql)
     # Fix invalid BIGINT timestamp vs DATE comparisons (Athena TYPE_MISMATCH)
     sql = fix_bigint_date_comparisons(sql)
+    # Convert PostgreSQL INTERVAL syntax to Athena date_add()
+    sql = fix_interval_syntax(sql)
 
     # Only add LIMIT if missing, and cap at 100 for safety
     if " limit " not in sql.lower():
