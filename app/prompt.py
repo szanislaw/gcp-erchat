@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _find_property_uuid_column(schema: dict) -> str:
+def find_property_uuid_column(schema: dict) -> str:
     """
     Detect the property UUID column name from the Glue schema.
     The actual column may be 'property_uuid', 'property', etc.
@@ -78,7 +78,7 @@ def _build_common_parts(
     property_name = getattr(context, 'location_name', None)
     normalized_text, matched_entities, entity_hints = preprocess_query(text)
 
-    property_col = _find_property_uuid_column(schema)
+    property_col = find_property_uuid_column(schema)
     if property_col:
         logger.info(f"Detected property UUID column: '{property_col}'")
     else:

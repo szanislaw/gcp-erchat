@@ -284,6 +284,37 @@ def fix_bigint_date_comparisons(sql: str) -> str:
     return sql
 
 
+def fix_property_column(sql: str, correct_col: str, property_uuids: list) -> str:
+    """
+    Fix model hallucinating a wrong property column in WHERE IN clauses.
+
+    The 7B model often generates WHERE property_name IN ('uuid') instead of
+    WHERE property IN ('uuid') because 'property_name' exists as a regular column
+    in the schema. This detects any property* column in an IN clause that contains
+    our known UUIDs and rewrites it to the correct partition column.
+    """
+    if not sql or not correct_col or not property_uuids:
+        return sql
+
+    # Match: optional_alias.property_something IN ('...uuid...')
+    pattern = re.compile(
+        r'(\b\w+\.)?(property\w*)\s+(IN\s*\([^)]+\))',
+        re.IGNORECASE
+    )
+
+    def _replace(match):
+        alias = match.group(1) or ""
+        col = match.group(2)
+        in_clause = match.group(3)
+        # Only fix if the IN clause contains one of our known UUIDs
+        if col.lower() != correct_col.lower() and any(u in in_clause for u in property_uuids):
+            logger.info(f"Fixed hallucinated property column: {col} → {correct_col}")
+            return f"{alias}{correct_col} {in_clause}"
+        return match.group(0)
+
+    return pattern.sub(_replace, sql)
+
+
 def fix_table_names(sql: str, allowed_tables: list = None) -> str:
     """
     Fix hallucinated table names by replacing variants with the correct table name.

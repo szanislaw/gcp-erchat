@@ -187,9 +187,15 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             req.model.max_tokens
         )
 
-        # Step 5.5: Fix hallucinated table names before validation
-        from app.sqlcoder import fix_table_names
+        # Step 5.5: Fix hallucinated table names and property column before validation
+        from app.sqlcoder import fix_table_names, fix_property_column
+        from app.prompt import find_property_uuid_column
+        from app.schema_loader import load_schema
         result["query"] = fix_table_names(result["query"], allowed_tables)
+        _schema = load_schema(athena_target)
+        _property_col = find_property_uuid_column(_schema)
+        _property_uuids = [u.strip() for u in req.context.property_uuid.split(',') if u.strip()] if req.context.property_uuid else []
+        result["query"] = fix_property_column(result["query"], _property_col, _property_uuids)
 
         # Step 6: Validate Generated SQL
         sql = validate_sql(
@@ -245,6 +251,7 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
                         req.model.max_tokens,
                     )
                     corrected_sql = fix_table_names(correction_result["query"], allowed_tables)
+                    corrected_sql = fix_property_column(corrected_sql, _property_col, _property_uuids)
                     corrected_sql = validate_sql(corrected_sql, allowed_tables, req.sql.dialect)
                     correction_attempts += 1
                     logger.info(f"Self-correction {correction_attempts}: new SQL: {corrected_sql[:120]}")
