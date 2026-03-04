@@ -308,25 +308,35 @@ def fix_date_part(sql: str) -> str:
 
     original = sql
 
-    # date_part('year', [alias.]snapshotdate)
     def _replace_date_part(m):
         part = m.group(1).lower().strip("'\"")
         func = _PART_FUNC.get(part, part)
         return f"{func}({_WRAPPED})"
 
-    sql = re.sub(
-        r"date_part\s*\(\s*['\"]?(\w+)['\"]?\s*,\s*(?:\w+\.)?snapshotdate\s*\)",
-        _replace_date_part, sql, flags=re.IGNORECASE
-    )
-
-    # EXTRACT(YEAR FROM [alias.]snapshotdate)
     def _replace_extract(m):
         part = m.group(1).lower()
         func = _PART_FUNC.get(part, part)
         return f"{func}({_WRAPPED})"
 
+    # date_part('year', [alias.]snapshotdate)
+    sql = re.sub(
+        r"date_part\s*\(\s*['\"]?(\w+)['\"]?\s*,\s*(?:\w+\.)?snapshotdate\s*\)",
+        _replace_date_part, sql, flags=re.IGNORECASE
+    )
+    # date_part('year', date_parse(snapshotdate, ...))  — already wrapped by fix_date_comparisons
+    sql = re.sub(
+        r"date_part\s*\(\s*['\"]?(\w+)['\"]?\s*,\s*date_parse\s*\(\s*(?:\w+\.)?snapshotdate\s*,[^)]+\)\s*\)",
+        _replace_date_part, sql, flags=re.IGNORECASE
+    )
+
+    # EXTRACT(YEAR FROM [alias.]snapshotdate)
     sql = re.sub(
         r"EXTRACT\s*\(\s*(\w+)\s+FROM\s+(?:\w+\.)?snapshotdate\s*\)",
+        _replace_extract, sql, flags=re.IGNORECASE
+    )
+    # EXTRACT(YEAR FROM date_parse(snapshotdate, ...))  — already wrapped
+    sql = re.sub(
+        r"EXTRACT\s*\(\s*(\w+)\s+FROM\s+date_parse\s*\(\s*(?:\w+\.)?snapshotdate\s*,[^)]+\)\s*\)",
         _replace_extract, sql, flags=re.IGNORECASE
     )
 
@@ -387,7 +397,7 @@ def fix_group_by_aliases(sql: str) -> str:
                 fixed.append(str(alias_map[col_clean.lower()]))
             else:
                 fixed.append(col_clean)
-        return "GROUP BY " + ", ".join(fixed)
+        return "GROUP BY " + ", ".join(fixed) + " "
 
     original = sql
     sql = re.sub(
