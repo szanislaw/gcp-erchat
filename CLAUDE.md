@@ -19,18 +19,21 @@ A production FastAPI service that converts natural language questions into AWS A
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Logs are written to `logs/api.log`.
+Logs are written to `logs/api.log`. Swagger UI available at `http://localhost:8000/docs`.
 
 ## Running Tests
 
 ```bash
-python test/test_questions.py       # NLQ query test suite
-python test/test_suggestions.py     # Query suggestion tests
-python test/test_sqlcoder_date_fixes.py  # SQL post-processing unit tests
-python test/stress_test.py          # Load/stress testing
-python test/debug_query.py          # Debug individual queries
-python test/health_check.py         # Health check verification
-python test/eval_corpus.py          # 38-question NL-to-SQL evaluation corpus (100% pass rate)
+python test/test_questions.py           # NLQ query test suite
+python test/test_suggestions.py         # Query suggestion tests
+python test/test_sqlcoder_date_fixes.py # SQL post-processing unit tests
+python test/test_display_detection.py   # Display type detection tests
+python test/test_display_types.py       # Display type integration tests
+python test/test_column_formatting.py   # Column name formatting tests
+python test/stress_test.py              # Load/stress testing
+python test/debug_query.py              # Debug individual queries
+python test/health_check.py             # Health check verification
+python test/eval_corpus.py              # 38-question NL-to-SQL evaluation corpus (100% pass rate)
 ```
 
 ## Environment Setup
@@ -56,13 +59,14 @@ The `/nlq/execute` endpoint processes requests through a strict sequential pipel
 1. **Input validation** (`app/input_validator.py`) — XSS/injection sanitization
 2. **Rate limiting** (`app/rate_limiter.py`) — token bucket, 2 req/s, burst 10
 3. **Athena target resolution** — maps request to `ATHENA_TARGETS` config (`app/athena_config.py`)
-4. **Prompt construction** (`app/prompt.py`) — loads schema from AWS Glue, normalizes query (`app/query_normalizer.py`), injects property UUID access restrictions
+4. **Prompt construction** (`app/prompt.py`) — loads schema from AWS Glue via `app/schema_loader.py` (cached in-memory), normalizes query (`app/query_normalizer.py`), injects property UUID access restrictions and ENUM column distinct values
 5. **Model inference** (`app/sqlcoder.py`) — runs sqlcoder-7b-2 in ThreadPoolExecutor (non-blocking); has LRU cache (500 entries)
 6. **SQL post-processing** — `fix_table_names()` corrects hallucinated table variants, then `fix_date_comparisons()`, `fix_bigint_date_comparisons()`, and `fix_interval_syntax()` fix Athena type mismatches and convert PostgreSQL `INTERVAL` syntax to `date_add()`
 7. **SQL validation** (`app/security.py`) — blocks forbidden operations (DROP/DELETE/etc.), validates table access
 8. **Athena execution** (`app/athena_client.py`) — optional, skipped when `dry_run=true`
-9. **Display type detection** (`app/display_hint.py`) — priority: user-specified → question pattern matching → SQL structure analysis
-10. **Chart formatting** (`app/chart_formatter.py`) — reshapes data for bar/pie/line/metric displays
+9. **Column formatting** (`app/column_formatter.py`) — remaps raw DB column names to human-readable display names (e.g. `category_name` → `Category`, `snapshotdate` → `Date`)
+10. **Display type detection** (`app/display_hint.py`) — priority: user-specified → question pattern matching → SQL structure analysis
+11. **Chart formatting** (`app/chart_formatter.py`) — reshapes data for bar/pie/line/metric displays
 
 ### Key Data Flow Constraints
 
@@ -77,7 +81,7 @@ Two configured targets:
 - `peninsula_incident` — database `peninsula-incident2`, table `incident_combine`
 - `londoner_granded` — database `londoner_granded`, table `ldco_testing`
 
-Adding a new target: add an entry to `ATHENA_TARGETS` dict; schema is auto-fetched from AWS Glue on first request and cached in-memory.
+Adding a new target: add entries to both `ATHENA_TARGETS` and `ENUM_COLUMNS` dicts; schema is auto-fetched from AWS Glue on first request and cached in-memory. `ENUM_COLUMNS` defines which categorical columns should have their distinct values fetched and injected into the model prompt to improve SQL generation accuracy.
 
 ### Property-Based Access Control
 
@@ -119,7 +123,7 @@ On Athena execution failure (`RuntimeError`), the pipeline automatically retries
     "language": "en"
   },
   "sql": { "dialect": "athena", "tables": [] },
-  "execution": { "dry_run": false, "max_rows": 100 },
+  "execution": { "dry_run": false, "max_rows": 100, "athena_target": "peninsula_incident" },
   "model": { "max_tokens": 256 },
   "display": { "type": "metric" },
   "trace": { "request_id": "optional-id", "source": "manual" }

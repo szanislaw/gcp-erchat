@@ -61,7 +61,11 @@ def _get_cache_key(prompt: str, max_tokens: int) -> str:
 
 
 def load_model():
-    """Load the SQL generation model. Thread-safe."""
+    """Load the SQL generation model. Thread-safe.
+
+    Set USE_QUANTIZATION=true in .env to enable 4-bit quantization (~4-5GB VRAM, slower).
+    Default is float16 (~13GB VRAM, faster, better quality) — recommended for L4 (23GB).
+    """
     global _model, _tokenizer
 
     with _model_lock:
@@ -69,23 +73,25 @@ def load_model():
             return
 
         model_name = "defog/sqlcoder-7b-2"
-        logger.info(f"[BOOT] Loading {model_name} (state-of-the-art NL-to-SQL, 4-bit quantized)...")
+        use_quantization = os.getenv("USE_QUANTIZATION", "false").lower() == "true"
 
-        from transformers import BitsAndBytesConfig
-        quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
-        )
+        if use_quantization:
+            from transformers import BitsAndBytesConfig
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.float16,
+            )
+            logger.info(f"[BOOT] Loading {model_name} (4-bit quantized)...")
+            kwargs = {"quantization_config": quantization_config, "device_map": "auto"}
+        else:
+            logger.info(f"[BOOT] Loading {model_name} (float16, no quantization)...")
+            kwargs = {"torch_dtype": torch.float16, "device_map": "auto"}
 
         _tokenizer = AutoTokenizer.from_pretrained(model_name)
+        _model = AutoModelForCausalLM.from_pretrained(model_name, **kwargs)
 
-        _model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            quantization_config=quantization_config,
-            device_map="auto",
-        )
-
-        logger.info(f"[BOOT] {model_name} loaded successfully!")
+        device = next(_model.parameters()).device
+        logger.info(f"[BOOT] {model_name} loaded successfully on {device} (quantized={use_quantization})")
 
 
 def fix_date_comparisons(sql: str) -> str:
