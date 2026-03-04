@@ -284,6 +284,157 @@ def fix_bigint_date_comparisons(sql: str) -> str:
     return sql
 
 
+def fix_date_part(sql: str) -> str:
+    """
+    Convert date_part() / EXTRACT() calls on snapshotdate to Athena-compatible equivalents.
+
+    Athena supports these functions on DATE/TIMESTAMP types, but snapshotdate is VARCHAR,
+    so it must be wrapped with date_parse() first. Only targets snapshotdate — leaves
+    date_part()/EXTRACT() on other columns untouched.
+
+    Converts:
+      date_part('year', [alias.]snapshotdate)          → year(date_parse(snapshotdate, '%Y-%m-%d'))
+      EXTRACT(YEAR FROM [alias.]snapshotdate)           → year(date_parse(snapshotdate, '%Y-%m-%d'))
+    """
+    if not sql:
+        return sql
+
+    _PART_FUNC = {
+        "year": "year", "month": "month", "day": "day",
+        "week": "week", "hour": "hour", "minute": "minute", "second": "second",
+        "dow": "day_of_week", "doy": "day_of_year",
+    }
+    _WRAPPED = "date_parse(snapshotdate, '%Y-%m-%d')"
+
+    original = sql
+
+    # date_part('year', [alias.]snapshotdate)
+    def _replace_date_part(m):
+        part = m.group(1).lower().strip("'\"")
+        func = _PART_FUNC.get(part, part)
+        return f"{func}({_WRAPPED})"
+
+    sql = re.sub(
+        r"date_part\s*\(\s*['\"]?(\w+)['\"]?\s*,\s*(?:\w+\.)?snapshotdate\s*\)",
+        _replace_date_part, sql, flags=re.IGNORECASE
+    )
+
+    # EXTRACT(YEAR FROM [alias.]snapshotdate)
+    def _replace_extract(m):
+        part = m.group(1).lower()
+        func = _PART_FUNC.get(part, part)
+        return f"{func}({_WRAPPED})"
+
+    sql = re.sub(
+        r"EXTRACT\s*\(\s*(\w+)\s+FROM\s+(?:\w+\.)?snapshotdate\s*\)",
+        _replace_extract, sql, flags=re.IGNORECASE
+    )
+
+    if sql != original:
+        logger.info("Converted date_part()/EXTRACT() on snapshotdate to Athena-compatible functions")
+    return sql
+
+
+def fix_group_by_aliases(sql: str) -> str:
+    """
+    Replace SELECT aliases used in GROUP BY with ordinal positions.
+
+    Athena (Presto) does not support referencing SELECT aliases in GROUP BY.
+    Detects aliases defined as 'AS alias' in SELECT and replaces matching
+    GROUP BY terms with their 1-based ordinal position.
+
+    Only replaces exact alias matches — real column names in GROUP BY are left alone.
+    """
+    if not sql or "group by" not in sql.lower():
+        return sql
+
+    select_match = re.search(r'\bSELECT\b\s+(.+?)\s+\bFROM\b', sql, re.IGNORECASE | re.DOTALL)
+    if not select_match:
+        return sql
+
+    # Split SELECT items by top-level commas (skip commas inside parentheses)
+    select_str = select_match.group(1)
+    items, depth, current = [], 0, []
+    for ch in select_str:
+        if ch == '(':
+            depth += 1
+        elif ch == ')':
+            depth -= 1
+        if ch == ',' and depth == 0:
+            items.append(''.join(current).strip())
+            current = []
+        else:
+            current.append(ch)
+    if current:
+        items.append(''.join(current).strip())
+
+    # Build alias → ordinal map (only explicit AS aliases)
+    alias_map = {}
+    for pos, item in enumerate(items, start=1):
+        m = re.search(r'\bAS\s+(\w+)\s*$', item, re.IGNORECASE)
+        if m:
+            alias_map[m.group(1).lower()] = pos
+
+    if not alias_map:
+        return sql
+
+    def _replace_group_by(match):
+        cols = re.split(r',\s*', match.group(1).strip())
+        fixed = []
+        for col in cols:
+            col_clean = col.strip()
+            if col_clean.lower() in alias_map:
+                fixed.append(str(alias_map[col_clean.lower()]))
+            else:
+                fixed.append(col_clean)
+        return "GROUP BY " + ", ".join(fixed)
+
+    original = sql
+    sql = re.sub(
+        r'\bGROUP\s+BY\s+((?:(?!\bORDER\b|\bHAVING\b|\bLIMIT\b).)+)',
+        _replace_group_by, sql, flags=re.IGNORECASE | re.DOTALL
+    )
+    if sql != original:
+        logger.info("Replaced GROUP BY aliases with ordinal positions for Athena compatibility")
+    return sql
+
+
+def inject_property_filter(sql: str, property_col: str, property_uuids: list) -> str:
+    """
+    Ensure the mandatory property UUID filter is present in the SQL WHERE clause.
+
+    The model sometimes drops the CRITICAL property filter entirely when the query
+    has a complex WHERE clause. This detects absence and injects it before LIMIT/GROUP BY.
+
+    Only injects if: property_col and property_uuids are provided AND the filter is absent.
+    """
+    if not sql or not property_col or not property_uuids:
+        return sql
+
+    # Check if any of the UUIDs are already in the SQL (filter already present)
+    if any(u in sql for u in property_uuids):
+        return sql
+
+    uuid_list = ", ".join(f"'{u}'" for u in property_uuids)
+    filter_clause = f"{property_col} IN ({uuid_list})"
+
+    where_match = re.search(r'\bWHERE\b', sql, re.IGNORECASE)
+    if where_match:
+        # Inject as the first condition in WHERE (avoids AND precedence issues)
+        insert_pos = where_match.end()
+        sql = sql[:insert_pos] + f" {filter_clause} AND" + sql[insert_pos:]
+    else:
+        # No WHERE clause — insert before GROUP BY / ORDER BY / LIMIT, or at end
+        insert_match = re.search(r'\b(GROUP\s+BY|ORDER\s+BY|LIMIT)\b', sql, re.IGNORECASE)
+        if insert_match:
+            sql = sql[:insert_match.start()] + f"WHERE {filter_clause} " + sql[insert_match.start():]
+        else:
+            sql = sql.rstrip(";") + f" WHERE {filter_clause}"
+
+    logger.info(f"Injected missing property filter: {filter_clause}")
+    return sql
+
+
 def fix_property_column(sql: str, correct_col: str, property_uuids: list) -> str:
     """
     Fix model hallucinating a wrong property column in WHERE IN clauses.
@@ -365,12 +516,16 @@ def extract_sql(text: str) -> str:
     sql = match.group(1).strip()
     sql = re.sub(r"\s+", " ", sql)
     
+    # Fix date_part()/EXTRACT() on snapshotdate (VARCHAR column)
+    sql = fix_date_part(sql)
     # Fix date comparisons for snapshotdate (VARCHAR column)
     sql = fix_date_comparisons(sql)
     # Fix invalid BIGINT timestamp vs DATE comparisons (Athena TYPE_MISMATCH)
     sql = fix_bigint_date_comparisons(sql)
     # Convert PostgreSQL INTERVAL syntax to Athena date_add()
     sql = fix_interval_syntax(sql)
+    # Fix GROUP BY aliases → ordinal positions (Athena doesn't support aliases in GROUP BY)
+    sql = fix_group_by_aliases(sql)
 
     # Only add LIMIT if missing, and cap at 100 for safety
     if " limit " not in sql.lower():
