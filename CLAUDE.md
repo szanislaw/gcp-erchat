@@ -50,6 +50,8 @@ Alternatively, use AWS CLI configuration (`aws configure`). The app uses boto3's
 
 Install dependencies: `pip install -r requirements.txt`
 
+The production server uses a conda environment: `~/miniconda3/envs/venv1`. To run scripts on the remote server, use `~/miniconda3/envs/venv1/bin/python3` explicitly (no `venv/bin/activate`).
+
 ## Architecture
 
 ### Request Pipeline (`app/main.py`)
@@ -61,7 +63,15 @@ The `/nlq/execute` endpoint processes requests through a strict sequential pipel
 3. **Athena target resolution** — maps request to `ATHENA_TARGETS` config (`app/athena_config.py`)
 4. **Prompt construction** (`app/prompt.py`) — loads schema from AWS Glue via `app/schema_loader.py` (cached in-memory), normalizes query (`app/query_normalizer.py`), injects property UUID access restrictions and ENUM column distinct values
 5. **Model inference** (`app/sqlcoder.py`) — runs sqlcoder-7b-2 in ThreadPoolExecutor (non-blocking); has LRU cache (500 entries)
-6. **SQL post-processing** — `fix_table_names()` corrects hallucinated table variants, then `fix_date_comparisons()`, `fix_bigint_date_comparisons()`, and `fix_interval_syntax()` fix Athena type mismatches and convert PostgreSQL `INTERVAL` syntax to `date_add()`
+6. **SQL post-processing** (`app/sqlcoder.py`) — applied in order:
+   - `fix_date_part()` — converts `date_part()`/`EXTRACT()` on `snapshotdate` to Athena-native functions
+   - `fix_date_comparisons()` — wraps bare `snapshotdate` references in `date_parse()`
+   - `fix_bigint_date_comparisons()` — rewrites date predicates on BIGINT timestamp columns to use `snapshotdate`
+   - `fix_interval_syntax()` — converts PostgreSQL `INTERVAL` to `date_add()`
+   - `fix_group_by_aliases()` — replaces SELECT aliases in `GROUP BY` with ordinal positions (Athena rejects aliases)
+   - `fix_table_names()` — corrects hallucinated table name variants
+   - `fix_property_column()` — rewrites `property_name IN (uuid)` → `property IN (uuid)` when model uses wrong column
+   - `inject_property_filter()` — injects mandatory `WHERE property IN (...)` if model drops it entirely
 7. **SQL validation** (`app/security.py`) — blocks forbidden operations (DROP/DELETE/etc.), validates table access
 8. **Athena execution** (`app/athena_client.py`) — optional, skipped when `dry_run=true`
 9. **Column formatting** (`app/column_formatter.py`) — remaps raw DB column names to human-readable display names (e.g. `category_name` → `Category`, `snapshotdate` → `Date`)
@@ -85,7 +95,13 @@ Adding a new target: add entries to both `ATHENA_TARGETS` and `ENUM_COLUMNS` dic
 
 ### Property-Based Access Control
 
-Authentication is handled externally. The API receives pre-authorized `property_uuid` values in the request context. `app/prompt.py` injects a mandatory `WHERE property_col IN (...)` restriction into the LLM prompt. The property UUID column name is auto-detected from the Glue schema (tries `property_uuid`, then columns containing both "property" and "uuid", then `property`).
+Authentication is handled externally. The API receives pre-authorized `property_uuid` values in the request context. `app/prompt.py` injects a mandatory `WHERE property_col IN (...)` restriction into the LLM prompt. The property UUID column name is auto-detected via `find_property_uuid_column()` from the Glue schema (tries `property_uuid`, then columns containing both "property" and "uuid", then `property`).
+
+**Critical schema gotcha:** `peninsula_incident` has two similarly-named columns:
+- `property` — **partition key**, holds UUID values used for access control filtering
+- `property_name` — regular VARCHAR column, holds hotel display names (e.g. `'The Peninsula Manila'`)
+
+The model frequently hallucinates `WHERE property_name IN ('uuid')` instead of `WHERE property IN ('uuid')`, returning 0 rows. `fix_property_column()` and `inject_property_filter()` in `app/sqlcoder.py` correct this in post-processing.
 
 ### Display Type Logic (`app/display_hint.py`)
 
@@ -131,3 +147,7 @@ On Athena execution failure (`RuntimeError`), the pipeline automatically retries
 ```
 
 See `test/sample_payloads.json` and `test/clis/curl-request-template.txt` for curl examples.
+
+## Remote Server
+
+Production runs at `http://34.21.133.111:8000`. SSH access: `ssh shawn.yap@34.21.133.111`, code at `~/gcp-erchat`. Deploy by pulling latest git and restarting with `./stop.sh && ./start.sh`. Conda env: `~/miniconda3/envs/venv1`.
