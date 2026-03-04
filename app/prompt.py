@@ -112,7 +112,9 @@ Use AWS Athena (PrestoSQL) syntax. Output ONLY the SQL query, no explanation.
 - Daily trend: GROUP BY snapshotdate
 - created_date, incident_time, completed_date, cancelled_date are BIGINT timestamps: use ONLY for ORDER BY, NEVER in WHERE, GROUP BY, or any date function
 - For "recent" without a time period: ORDER BY created_date DESC LIMIT X — no date filter needed
-- property_name = hotel name (e.g. 'The Peninsula Manila'); location_name = room/area within hotel{property_restriction}{entity_context}{enum_hint}"""
+- property_name = hotel display name (e.g. 'The Peninsula Manila') — a TEXT column, NOT for UUID filtering
+- location_name = room/area within hotel
+- The `property` partition key holds UUIDs for access control — NEVER use property_name for UUID filtering{property_restriction}{entity_context}{enum_hint}"""
 
     return normalized_text, ddl_schema, additional_instructions
 
