@@ -34,6 +34,7 @@ python test/stress_test.py              # Load/stress testing
 python test/debug_query.py              # Debug individual queries
 python test/health_check.py             # Health check verification
 python test/eval_corpus.py              # 38-question NL-to-SQL evaluation corpus (100% pass rate)
+python test/test_target_questions.py    # Target-specific NLQ tests
 ```
 
 ## Environment Setup
@@ -62,14 +63,18 @@ The `/nlq/execute` endpoint processes requests through a strict sequential pipel
 2. **Rate limiting** (`app/rate_limiter.py`) — token bucket, 2 req/s, burst 10
 3. **Athena target resolution** — maps request to `ATHENA_TARGETS` config (`app/athena_config.py`)
 4. **Prompt construction** (`app/prompt.py`) — loads schema from AWS Glue via `app/schema_loader.py` (cached in-memory), normalizes query (`app/query_normalizer.py`), injects property UUID access restrictions and ENUM column distinct values
+   - `get_time_expression_hint()` — detects calendar expressions ('this week', 'last month', etc.) and injects exact SQL filter snippets as entity hints, overriding the model's tendency to use rolling windows
 5. **Model inference** (`app/sqlcoder.py`) — runs sqlcoder-7b-2 in ThreadPoolExecutor (non-blocking); has LRU cache (500 entries)
 6. **SQL post-processing** (`app/sqlcoder.py`) — applied in order:
    - `fix_date_part()` — converts `date_part()`/`EXTRACT()` on `snapshotdate` to Athena-native functions
-   - `fix_date_comparisons()` — wraps bare `snapshotdate` references in `date_parse()`
+   - `fix_date_comparisons()` — wraps bare `snapshotdate` references in `date_parse()` (also handles reverse: `<expr> op snapshotdate`)
    - `fix_bigint_date_comparisons()` — rewrites date predicates on BIGINT timestamp columns to use `snapshotdate`
    - `fix_interval_syntax()` — converts PostgreSQL `INTERVAL` to `date_add()`
    - `fix_group_by_aliases()` — replaces SELECT aliases in `GROUP BY` with ordinal positions (Athena rejects aliases)
-   - `fix_table_names()` — corrects hallucinated table name variants
+   - `fix_invalid_extract_from_table()` — fixes hallucinated `EXTRACT(YEAR/WEEK FROM table_name)` → `date_trunc('week', current_date)`
+   - `fix_impossible_this_period_filter()` — removes self-contradicting `>= date_trunc('week') AND < date_trunc('week')` upper bounds
+   - `fix_last_week_filter()` — when question says "last week", converts rolling `-7 day` window to calendar Mon–Sun boundary
+   - `fix_table_names()` — corrects hallucinated table name variants; falls back to replacing any unknown `FROM/JOIN` table with the primary allowed table
    - `fix_property_column()` — rewrites `property_name IN (uuid)` → `property IN (uuid)` when model uses wrong column
    - `inject_property_filter()` — injects mandatory `WHERE property IN (...)` if model drops it entirely
 7. **SQL validation** (`app/security.py`) — blocks forbidden operations (DROP/DELETE/etc.), validates table access
@@ -80,6 +85,8 @@ The `/nlq/execute` endpoint processes requests through a strict sequential pipel
 
 ### Key Data Flow Constraints
 
+- CTE queries (`WITH prev AS (...), curr AS (...) SELECT ...`) are fully supported: `extract_sql()` detects the `WITH` keyword and returns the full CTE; `validate_sql()` excludes CTE alias names from unknown-table checks.
+- Calendar expressions ('this week', 'this month') use `date_trunc()` boundary; rolling windows ('last 7 days', 'last 30 days') use `date_add()`. These are NOT interchangeable — "last week" means Mon–Sun, not -7 days.
 - `snapshotdate` is a `VARCHAR` column — SQL must use `date_parse(snapshotdate, '%Y-%m-%d')` for any date comparisons. The post-processor in `sqlcoder.py` automatically fixes this.
 - `created_date`, `incident_time`, `completed_date`, `cancelled_date` are `BIGINT` timestamps — **never** use these in WHERE clauses for date filtering, only for `ORDER BY`.
 - All queries are capped at `LIMIT 100`.

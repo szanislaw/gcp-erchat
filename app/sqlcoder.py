@@ -79,6 +79,7 @@ def load_model():
             from transformers import BitsAndBytesConfig
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
                 bnb_4bit_compute_dtype=torch.float16,
             )
             logger.info(f"[BOOT] Loading {model_name} (4-bit quantized)...")
@@ -149,7 +150,21 @@ def fix_date_comparisons(sql: str) -> str:
         return f"date_parse(snapshotdate, '%Y-%m-%d') {operator} "
     
     fixed_sql = date_comparison_pattern.sub(replace_snapshotdate, sql)
-    
+
+    # Fix 3: Reverse comparison — <date_expr> [op] snapshotdate (snapshotdate on right side)
+    # e.g., date_trunc('week', current_date) <= snapshotdate
+    # Negative lookahead (?!\s*,) prevents matching snapshotdate inside date_parse(snapshotdate, ...)
+    reverse_comparison_pattern = re.compile(
+        r'([><=!]+)\s*\bsnapshotdate\b(?!\s*,)',
+        re.IGNORECASE
+    )
+
+    def replace_reverse_snapshotdate(match):
+        op = match.group(1)
+        return f"{op} date_parse(snapshotdate, '%Y-%m-%d')"
+
+    fixed_sql = reverse_comparison_pattern.sub(replace_reverse_snapshotdate, fixed_sql)
+
     if fixed_sql != sql:
         logger.debug(f"Fixed date comparison: {sql[:100]}... → {fixed_sql[:100]}...")
 
@@ -476,6 +491,79 @@ def fix_property_column(sql: str, correct_col: str, property_uuids: list) -> str
     return pattern.sub(_replace, sql)
 
 
+def fix_invalid_extract_from_table(sql: str) -> str:
+    """
+    Fix model hallucination: EXTRACT(YEAR/WEEK FROM table_name) or EXTRACT(unit FROM CURRENT_TABLE).
+    Converts year(snapshotdate) = EXTRACT(YEAR FROM <non-date>) AND week(snapshotdate) = EXTRACT(WEEK FROM <non-date>)
+    into the proper date_trunc('week', current_date) filter.
+    """
+    # Pattern: year(date_parse(snapshotdate,...)) = EXTRACT(YEAR FROM <something>) AND
+    #          week(date_parse(snapshotdate,...)) = EXTRACT(WEEK FROM <something>)
+    week_pattern = re.compile(
+        r"year\s*\(\s*date_parse\s*\(\s*(?:\w+\.)?snapshotdate\s*,[^)]+\)\s*\)\s*=\s*EXTRACT\s*\(\s*YEAR\s+FROM\s+[^)]+\)"
+        r"\s+AND\s+"
+        r"week\s*\(\s*date_parse\s*\(\s*(?:\w+\.)?snapshotdate\s*,[^)]+\)\s*\)\s*=\s*EXTRACT\s*\(\s*WEEK\s+FROM\s+[^)]+\)",
+        re.IGNORECASE,
+    )
+    if week_pattern.search(sql):
+        replacement = "date_parse(snapshotdate, '%Y-%m-%d') >= date_trunc('week', current_date)"
+        sql = week_pattern.sub(replacement, sql)
+        logger.info("Fixed invalid EXTRACT(unit FROM table) → date_trunc('week', current_date)")
+    return sql
+
+
+def fix_impossible_this_period_filter(sql: str) -> str:
+    """
+    Fix impossible date range: model sometimes generates
+    >= date_trunc('week', current_date) AND < date_trunc('week', current_date)
+    which is always false (same lower and upper bound). Remove the spurious upper bound.
+    """
+    for period in ('week', 'month'):
+        # Only fix when we also have the >= side with the same period (no date_add shift)
+        has_lower = re.search(
+            rf">=\s*date_trunc\s*\(\s*'{period}'\s*,\s*current_date\s*\)",
+            sql, re.IGNORECASE
+        )
+        if not has_lower:
+            continue
+        # Remove the AND ... < date_trunc('period', current_date) that makes it impossible
+        sql = re.sub(
+            rf"\s+AND\s+date_parse\s*\([^)]+\)\s*<\s*date_trunc\s*\(\s*'{period}'\s*,\s*current_date\s*\)",
+            "",
+            sql,
+            flags=re.IGNORECASE,
+        )
+    return sql
+
+
+def fix_last_week_filter(sql: str, question_text: str) -> str:
+    """
+    When question mentions 'last week', ensure SQL uses calendar-boundary filter
+    (Mon–Sun) rather than a rolling 7-day window (date_add('day', -7)).
+    """
+    if not question_text or "last week" not in question_text.lower():
+        return sql
+    if not re.search(r"date_add\s*\(\s*'day'\s*,\s*-7", sql, re.IGNORECASE):
+        return sql
+
+    # Replace rolling 7-day window with proper last-week calendar boundary
+    pattern = re.compile(
+        r"date_parse\s*\(\s*(?:\w+\.)?snapshotdate\s*,\s*'%Y-%m-%d'\s*\)\s*"
+        r">=\s*date_add\s*\(\s*'day'\s*,\s*-7\s*,\s*current_date\s*\)"
+        r"(?:\s+AND\s+date_parse\s*\(\s*(?:\w+\.)?snapshotdate\s*,\s*'%Y-%m-%d'\s*\)\s*"
+        r"<\s*date_trunc\s*\(\s*'day'\s*,\s*current_date\s*\))?",
+        re.IGNORECASE,
+    )
+    replacement = (
+        "date_parse(snapshotdate, '%Y-%m-%d') >= date_add('week', -1, date_trunc('week', current_date))"
+        " AND date_parse(snapshotdate, '%Y-%m-%d') < date_trunc('week', current_date)"
+    )
+    fixed = pattern.sub(replacement, sql)
+    if fixed != sql:
+        logger.info("Fixed 'last week' rolling window → calendar boundary")
+    return fixed
+
+
 def fix_table_names(sql: str, allowed_tables: list = None) -> str:
     """
     Fix hallucinated table names by replacing variants with the correct table name.
@@ -493,23 +581,43 @@ def fix_table_names(sql: str, allowed_tables: list = None) -> str:
     # For each allowed table, find and replace hallucinated variants
     # Pattern: allowed_table_name followed by extra suffixes (_YYYY, _vN, _something)
     for table in allowed_tables:
-        # Match the table name with any suffix like _2025, _v2, _history, etc.
         pattern = re.compile(
             r'\b' + re.escape(table) + r'_[a-zA-Z0-9_]+\b',
             re.IGNORECASE
         )
         matches = pattern.findall(sql)
         for match in matches:
-            # Only replace if the hallucinated name is NOT itself an allowed table
             if match.lower() not in [t.lower() for t in allowed_tables]:
                 logger.info(f"Fixed hallucinated table name: {match} → {table}")
                 sql = sql.replace(match, table)
-    
+
+    # Fallback: replace any unknown table name in FROM/JOIN with the primary allowed table.
+    # Exclude CTE aliases (defined as "name AS (") so we don't clobber valid CTEs.
+    if allowed_tables:
+        primary_table = allowed_tables[0]
+        allowed_lower = {t.lower() for t in allowed_tables}
+        cte_aliases = {m.lower() for m in re.findall(r'\b(\w+)\s+AS\s*\(', sql, re.IGNORECASE)}
+
+        def _replace_unknown_from(match):
+            keyword = match.group(1)   # FROM or JOIN
+            table_name = match.group(2)
+            if table_name.lower() in allowed_lower or table_name.lower() in cte_aliases:
+                return match.group(0)
+            logger.warning(f"Replacing unknown table '{table_name}' with '{primary_table}'")
+            return f"{keyword} {primary_table}"
+
+        sql = re.sub(
+            r'\b(FROM|JOIN)\s+(\w+)\b',
+            _replace_unknown_from,
+            sql,
+            flags=re.IGNORECASE,
+        )
+
     return sql
 
 
 def extract_sql(text: str) -> str:
-    """Extract and clean SQL from model output."""
+    """Extract and clean SQL from model output. Handles both plain SELECT and CTE (WITH...SELECT) queries."""
     if not text:
         return ""
 
@@ -519,11 +627,19 @@ def extract_sql(text: str) -> str:
 
     text = text.replace("```sql", "").replace("```", "")
 
-    match = SELECT_REGEX.search(text)
-    if not match:
+    # Check for CTE (WITH ... SELECT ...) — must be extracted before SELECT_REGEX to avoid
+    # capturing only an inner SELECT inside a CTE definition.
+    cte_match = re.search(r'\b(with\s+\w.+)', text, re.IGNORECASE | re.DOTALL)
+    select_match = SELECT_REGEX.search(text)
+
+    if cte_match and (not select_match or cte_match.start() <= select_match.start()):
+        # CTE found before (or instead of) a bare SELECT — use the full WITH clause
+        sql = cte_match.group(1).split(';')[0].strip()
+    elif select_match:
+        sql = select_match.group(1).strip()
+    else:
         return ""
 
-    sql = match.group(1).strip()
     sql = re.sub(r"\s+", " ", sql)
     
     # Fix date_part()/EXTRACT() on snapshotdate (VARCHAR column)

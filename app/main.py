@@ -147,7 +147,8 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
         
         # Use sanitized text
         sanitized_text = validation_result.sanitized_text
-        
+        t_validated = time.time()
+
         # Step 2: Rate Limiting Check
         rate_check = rate_limiter.check_rate_limit()
         if not rate_check.allowed:
@@ -178,6 +179,8 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             user_uuid=req.context.user_uuid
         )
 
+        t_prompt = time.time()
+
         # Step 5: Run Model Inference (non-blocking)
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
@@ -187,11 +190,18 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             req.model.max_tokens
         )
 
+        t_model = time.time()
+
         # Step 5.5: Fix hallucinated table names and property column before validation
-        from app.sqlcoder import fix_table_names, fix_property_column, inject_property_filter
+        from app.sqlcoder import (fix_table_names, fix_property_column, inject_property_filter,
+                                  fix_impossible_this_period_filter, fix_last_week_filter,
+                                  fix_invalid_extract_from_table)
         from app.prompt import find_property_uuid_column
         from app.schema_loader import load_schema
         result["query"] = fix_table_names(result["query"], allowed_tables)
+        result["query"] = fix_invalid_extract_from_table(result["query"])
+        result["query"] = fix_impossible_this_period_filter(result["query"])
+        result["query"] = fix_last_week_filter(result["query"], sanitized_text)
         _schema = load_schema(athena_target)
         _property_col = find_property_uuid_column(_schema)
         _property_uuids = [u.strip() for u in req.context.property_uuid.split(',') if u.strip()] if req.context.property_uuid else []
@@ -205,6 +215,8 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             req.sql.dialect
         )
         
+        t_postprocess = time.time()
+
         # Step 7: Execute Query (if not dry run) with self-correction loop
         execution_data = None
         executed = False
@@ -259,6 +271,8 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
                     logger.info(f"Self-correction {correction_attempts}: new SQL: {corrected_sql[:120]}")
                     current_sql = corrected_sql
 
+        t_athena = time.time()
+
         # Step 8: Determine Display Type
         # Priority: 1) User-provided display.type, 2) Question pattern matching, 3) SQL auto-detection
         if req.display and req.display.type:
@@ -285,6 +299,21 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             logger.info(f"Chart data formatted for {display_type}: {chart_data is not None}")
 
         total_latency_ms = int((time.time() - start_time) * 1000)
+        latency_breakdown = {
+            "prompt_ms": int((t_prompt - t_validated) * 1000),
+            "model_ms": result["latency_ms"],
+            "postprocess_ms": int((t_postprocess - t_model) * 1000),
+            "athena_ms": int((t_athena - t_postprocess) * 1000),
+            "total_ms": total_latency_ms,
+        }
+        logger.info(
+            f"[LATENCY] {request_id} "
+            f"prompt={latency_breakdown['prompt_ms']}ms "
+            f"model={latency_breakdown['model_ms']}ms "
+            f"post={latency_breakdown['postprocess_ms']}ms "
+            f"athena={latency_breakdown['athena_ms']}ms "
+            f"total={latency_breakdown['total_ms']}ms"
+        )
 
         response = {
             "success": True,
@@ -304,8 +333,7 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
             "explanation": result["explanation"],
             "trace": {
                 "request_id": request_id,
-                "model_latency_ms": result["latency_ms"],
-                "total_latency_ms": total_latency_ms,
+                "latency_ms": latency_breakdown,
                 "athena_target": athena_target,
                 "allowed_tables": allowed_tables,
                 "input_warnings": validation_result.warnings,

@@ -121,7 +121,11 @@ def validate_sql(sql: str, allowed_tables: List[str], dialect: str) -> str:
     # Extract and validate tables - case-insensitive comparison
     found_tables = extract_tables(sql_stripped)
     allowed_tables_lower = set(t.lower() for t in allowed_tables)
-    
+
+    # CTE aliases (e.g. WITH prev AS (...)) are not real tables — exclude from check
+    cte_aliases = {m.lower() for m in re.findall(r'\b(\w+)\s+AS\s*\(', sql_stripped, re.IGNORECASE)}
+    found_tables -= cte_aliases
+
     unauthorized_tables = found_tables - allowed_tables_lower
     if unauthorized_tables:
         raise ValueError(

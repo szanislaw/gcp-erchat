@@ -426,21 +426,59 @@ INCIDENT_ALIASES: Dict[str, str] = {
     "good feedback": "Positive Feedback",
 }
 
-# Time expression normalization
+# Time expression normalization (dead code — kept for reference only)
 TIME_ALIASES: Dict[str, str] = {
     "today": "today",
     "yesterday": "1 day ago",
-    "this week": "last 7 days",
-    "last week": "last 7 days",
+    "this week": "this week (calendar boundary)",
+    "last week": "last week (previous Mon–Sun)",
     "past week": "last 7 days",
-    "this month": "last 30 days",
-    "last month": "last 30 days",
+    "this month": "this month (calendar boundary)",
+    "last month": "last month (previous calendar month)",
     "past month": "last 30 days",
     "this year": "last 365 days",
     "recent": "last 7 days",
     "recently": "last 7 days",
     "latest": "last 7 days",
 }
+
+# Explicit SQL hints for calendar date expressions.
+# These are injected as entity hints in the prompt so the model has concrete
+# SQL to copy rather than inferring from general instructions.
+_TIME_SQL_HINTS: Dict[str, str] = {
+    "this week": (
+        "Use this exact date filter for 'this week': "
+        "date_parse(snapshotdate, '%Y-%m-%d') >= date_trunc('week', current_date)"
+    ),
+    "this month": (
+        "Use this exact date filter for 'this month': "
+        "date_parse(snapshotdate, '%Y-%m-%d') >= date_trunc('month', current_date)"
+    ),
+    "last week": (
+        "Use this exact date filter for 'last week': "
+        "date_parse(snapshotdate, '%Y-%m-%d') >= date_add('week', -1, date_trunc('week', current_date)) "
+        "AND date_parse(snapshotdate, '%Y-%m-%d') < date_trunc('week', current_date)"
+    ),
+    "last month": (
+        "Use this exact date filter for 'last month': "
+        "date_parse(snapshotdate, '%Y-%m-%d') >= date_add('month', -1, date_trunc('month', current_date)) "
+        "AND date_parse(snapshotdate, '%Y-%m-%d') < date_trunc('month', current_date)"
+    ),
+}
+
+
+def get_time_expression_hint(text: str) -> Optional[str]:
+    """
+    Return an explicit SQL date-filter hint if the query mentions a calendar
+    time expression ('this week', 'this month', 'last week', 'last month').
+    Returns None if no match is found.
+    """
+    text_lower = text.lower()
+    # Check longest expressions first to avoid partial matches
+    for expr in sorted(_TIME_SQL_HINTS, key=len, reverse=True):
+        if expr in text_lower:
+            return _TIME_SQL_HINTS[expr]
+    return None
 
 # ============================================================================
 # FUZZY MATCHING UTILITIES
