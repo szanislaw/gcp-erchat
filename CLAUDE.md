@@ -71,6 +71,7 @@ The `/nlq/execute` endpoint processes requests through a strict sequential pipel
    - `fix_bigint_date_comparisons()` — rewrites date predicates on BIGINT timestamp columns to use `snapshotdate`
    - `fix_interval_syntax()` — converts PostgreSQL `INTERVAL` to `date_add()`
    - `fix_group_by_aliases()` — replaces SELECT aliases in `GROUP BY` with ordinal positions (Athena rejects aliases)
+   - `fix_float_cast()` — replaces `CAST(... AS FLOAT)` with `CAST(... AS DOUBLE)` (Athena does not support FLOAT type)
    - `fix_invalid_extract_from_table()` — fixes hallucinated `EXTRACT(YEAR/WEEK FROM table_name)` → `date_trunc('week', current_date)`
    - `fix_impossible_this_period_filter()` — removes self-contradicting `>= date_trunc('week') AND < date_trunc('week')` upper bounds
    - `fix_last_week_filter()` — when question says "last week", converts rolling `-7 day` window to calendar Mon–Sun boundary
@@ -157,4 +158,4 @@ See `test/sample_payloads.json` and `test/clis/curl-request-template.txt` for cu
 
 ## Remote Server
 
-Production runs at `http://34.21.133.111:8000`. SSH access: `ssh shawn.yap@34.21.133.111`, code at `~/gcp-erchat`. Deploy by pulling latest git and restarting with `./stop.sh && ./start.sh`. Conda env: `~/miniconda3/envs/venv1`.
+Production runs at `http://34.126.131.59:8000`. SSH access: `ssh shawn.yap@34.126.131.59`, code at `~/gcp-erchat`. Deploy by pulling latest git and restarting with `./stop.sh && ./start.sh`. Conda env: `~/miniconda3/envs/venv1`.

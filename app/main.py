@@ -195,10 +195,11 @@ async def execute(req: NLQRequest, rate_limiter: RateLimiter = Depends(get_limit
         # Step 5.5: Fix hallucinated table names and property column before validation
         from app.sqlcoder import (fix_table_names, fix_property_column, inject_property_filter,
                                   fix_impossible_this_period_filter, fix_last_week_filter,
-                                  fix_invalid_extract_from_table)
+                                  fix_invalid_extract_from_table, fix_float_cast)
         from app.prompt import find_property_uuid_column
         from app.schema_loader import load_schema
         result["query"] = fix_table_names(result["query"], allowed_tables)
+        result["query"] = fix_float_cast(result["query"])
         result["query"] = fix_invalid_extract_from_table(result["query"])
         result["query"] = fix_impossible_this_period_filter(result["query"])
         result["query"] = fix_last_week_filter(result["query"], sanitized_text)

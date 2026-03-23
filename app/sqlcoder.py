@@ -564,6 +564,17 @@ def fix_last_week_filter(sql: str, question_text: str) -> str:
     return fixed
 
 
+def fix_float_cast(sql: str) -> str:
+    """
+    Athena (PrestoSQL) does not recognise FLOAT as a type — use DOUBLE instead.
+    Replaces CAST(... AS FLOAT) and CAST(... AS FLOAT64) with CAST(... AS DOUBLE).
+    """
+    fixed = re.sub(r'\bAS\s+FLOAT(?:64)?\b', 'AS DOUBLE', sql, flags=re.IGNORECASE)
+    if fixed != sql:
+        logger.debug("Fixed CAST AS FLOAT → CAST AS DOUBLE")
+    return fixed
+
+
 def fix_table_names(sql: str, allowed_tables: list = None) -> str:
     """
     Fix hallucinated table names by replacing variants with the correct table name.

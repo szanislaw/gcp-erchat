@@ -125,12 +125,14 @@ Use AWS Athena (PrestoSQL) syntax. Output ONLY the SQL query, no explanation.
 - location_name = room/area within hotel — use for "by location", "show location", "incidents by location"
 - department_name = hotel department — "resolves" incidents means status_name = 'completed'; "reports" means COUNT by that department
 - vip column: value 'Y' means VIP guest. VIP filter: WHERE vip = 'Y'. VIP count: COUNT(CASE WHEN vip = 'Y' THEN 1 END)
+- "average cost" / "avg cost" = AVG(actual_cost); "total cost" / "sum of cost" = SUM(actual_cost). Never substitute SUM for AVG.
 - Percentage of total: CAST(COUNT(CASE WHEN <condition> THEN 1 END) AS DOUBLE) * 100.0 / NULLIF(COUNT(*), 0) AS percentage
 - Trend / rising / decreasing / growth / increasing / falling queries: ALWAYS use WITH CTE syntax — two named CTEs (prev, curr) with date_trunc('month') boundaries:
   WITH prev AS (SELECT dim, COUNT(*) AS cnt FROM incident_combine WHERE property IN (...) AND date_parse(snapshotdate,'%Y-%m-%d') >= date_add('month',-1,date_trunc('month',current_date)) AND date_parse(snapshotdate,'%Y-%m-%d') < date_trunc('month',current_date) GROUP BY dim),
   curr AS (SELECT dim, COUNT(*) AS cnt FROM incident_combine WHERE property IN (...) AND date_parse(snapshotdate,'%Y-%m-%d') >= date_trunc('month',current_date) GROUP BY dim)
   SELECT dim FROM prev JOIN curr USING(dim) WHERE curr.cnt > prev.cnt ORDER BY (curr.cnt-prev.cnt) DESC LIMIT 100
   Use WITH ... AS (...) NOT inline subqueries. "Rising/increasing" = WHERE curr.cnt > prev.cnt; "Decreasing/falling" = WHERE curr.cnt < prev.cnt (NOT status='completed'). For "costs" use SUM(actual_cost). For "fastest growth" ORDER BY DESC LIMIT 1. Each CTE must have mandatory property filter.
+  In the outer SELECT of a CTE, ORDER BY only (curr.cnt-prev.cnt) or similar derived expressions — NEVER ORDER BY snapshotdate or any raw column not in the outer SELECT.
 - ALL data is in ONE table only — never reference any separate dimension table (department, location, category, etc.). Do not add JOIN to any table other than the allowed table or CTEs derived from it.
 - "recurring incidents" = most frequently occurring; use GROUP BY category_name (or location_name) ORDER BY COUNT(*) DESC
 - "least incidents" = ORDER BY COUNT(*) ASC LIMIT 1; "most incidents" = ORDER BY COUNT(*) DESC LIMIT 1

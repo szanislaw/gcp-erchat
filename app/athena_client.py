@@ -43,7 +43,8 @@ def execute_query(sql: str, target_name: str, max_rows: int):
     Execute a SQL query against Athena and return normalized results.
     Uses caching to avoid re-execution of identical queries.
     """
-    if not sql.lower().startswith("select"):
+    sql_lower = sql.strip().lower()
+    if not (sql_lower.startswith("select") or sql_lower.startswith("with")):
         raise ValueError("Only SELECT queries are allowed for Athena execution")
 
     # Check cache first
