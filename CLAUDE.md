@@ -17,6 +17,9 @@ A production FastAPI service that converts natural language questions into AWS A
 
 # Manual start
 uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# Deploy latest from git (production)
+ssh shawn.yap@34.126.131.59 "cd ~/gcp-erchat && git pull && ./stop.sh && ./start.sh"
 ```
 
 Logs are written to `logs/api.log`. Swagger UI available at `http://localhost:8000/docs`.
@@ -35,8 +38,12 @@ python test/debug_query.py              # Debug individual queries
 python test/health_check.py             # Health check verification
 python test/eval_corpus.py              # 38-question NL-to-SQL evaluation corpus (100% pass rate)
 python test/test_target_questions.py    # Target-specific NLQ tests
-python test/test_50_questions.py        # 50-question expanded NLQ test suite (48/50 pass, 96% — A–E perfect, F04/F05 CTE trend failures known)
+python test/test_50_questions.py        # 50-question expanded NLQ test suite (48/50 pass, 96% — A–E perfect, F04/F05 CTE trend failures known/accepted)
 ```
+
+To test against the remote server: `API_URL=http://34.126.131.59:8000 python test/test_50_questions.py`
+
+For offline SQL generation (skips Athena execution), add `"dry_run": true` to the execution payload, or pass `--dry-run` to test scripts that support it.
 
 ## Environment Setup
 
