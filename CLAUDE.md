@@ -35,7 +35,7 @@ python test/debug_query.py              # Debug individual queries
 python test/health_check.py             # Health check verification
 python test/eval_corpus.py              # 38-question NL-to-SQL evaluation corpus (100% pass rate)
 python test/test_target_questions.py    # Target-specific NLQ tests
-python test/test_50_questions.py        # 50-question expanded NLQ test suite
+python test/test_50_questions.py        # 50-question expanded NLQ test suite (48/50 pass, 96% — A–E perfect, F04/F05 CTE trend failures known)
 ```
 
 ## Environment Setup
