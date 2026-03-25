@@ -18,7 +18,8 @@ import argparse
 from dataclasses import dataclass
 from typing import List
 
-API_URL = "http://localhost:8000"
+import os
+API_URL = os.environ.get("API_URL", "http://localhost:8000")
 PROPERTY_UUID = "40868b01-a833-4818-9356-de0e0c9cf37f"  # The Peninsula Hong Kong
 
 # ── check helpers ─────────────────────────────────────────────────────────────
