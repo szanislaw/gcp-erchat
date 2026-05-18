@@ -45,17 +45,9 @@ data/
 # Test & Development (kept in repo under test/)
 # test/
 
-# Sensitive configs
-app/athena_config.py
-app/permissions_config.py
-
 # Tool working directories
 .lean-ctx/
 .omc/
-
-# Generated HTML exports
-ARCHITECTURE*.html
-ARCHITECTURE_*_files/
 
 # Backup files
 *.bak
