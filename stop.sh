@@ -26,7 +26,8 @@ if [ -f "logs/api.pid" ]; then
         fi
         echo -e "${GREEN}✓ FastAPI stopped (PID: $API_PID)${NC}"
     else
-        echo -e "${YELLOW}   FastAPI not running (stale PID file)${NC}"
+        echo -e "${YELLOW}   Stale PID file — trying pkill...${NC}"
+        pkill -f "uvicorn app.main:app" 2>/dev/null && echo -e "${GREEN}✓ FastAPI stopped${NC}"
     fi
     rm logs/api.pid 2>/dev/null
 else
