@@ -1,21 +1,19 @@
 # Web framework
 fastapi
-uvicorn
+uvicorn[standard]
 pydantic
 
 # Environment variables
 python-dotenv
 
-# AWS integration (for IAM-based Redshift auth)
+# AWS + Redshift
 boto3
 redshift_connector
 
-# ML/AI dependencies
+# ML model (defog/sqlcoder-7b-2)
 torch
 transformers
-bitsandbytes
-
-# Optional: accelerators and tokenizers (may be required by transformers)
 accelerate
+bitsandbytes
 sentencepiece
 protobuf
