@@ -61,6 +61,7 @@ if pgrep -f "uvicorn app.main:app" > /dev/null; then
 fi
 
 mkdir -p logs
+export PYTORCH_ALLOC_CONF=expandable_segments:True
 nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > logs/api.log 2>&1 &
 FASTAPI_PID=$!
 echo $FASTAPI_PID > logs/api.pid

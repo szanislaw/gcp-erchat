@@ -24,8 +24,8 @@ BASE_REQUEST = {
         "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
         "user_role": None
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": False, "max_rows": 100, "athena_target": None},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": False, "max_rows": 100, "redshift_target": None},
     "model": {"max_tokens": 512},
     "trace": {"source": "test-display-types"}
 }

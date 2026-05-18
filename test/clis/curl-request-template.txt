@@ -8,7 +8,7 @@ curl -X POST http://136.110.55.203:8080/nlq/execute \
     "language": "en"
   },
   "sql": {
-    "dialect": "athena"
+    "dialect": "redshift"
   },
   "execution": {
     "dry_run": false,

@@ -1,5 +1,5 @@
 # app/column_formatter.py
-# Utility to format raw Athena column names into human-readable display names
+# Utility to format Redshift column names into human-readable display names
 
 import re
 from typing import List, Dict, Any

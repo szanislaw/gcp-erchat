@@ -3,7 +3,7 @@ from typing import List, Set
 
 # Forbidden SQL operations (case-insensitive)
 FORBIDDEN = re.compile(r"\b(drop|delete|update|insert|alter|truncate|grant|revoke|create)\b", re.I)
-ATHENA_UNSUPPORTED = ["distinct on", "returning", "for update", "for share"]
+REDSHIFT_UNSUPPORTED = ["distinct on", "returning", "for update", "for share"]
 
 # Comprehensive table extraction patterns for ~90% accuracy
 TABLE_PATTERNS = [
@@ -51,8 +51,11 @@ def extract_tables(sql: str) -> Set[str]:
         return set()
     
     found_tables = set()
-    sql_lower = sql.lower()
-    
+    # Strip function calls that contain FROM (EXTRACT, SUBSTRING) so their
+    # arguments aren't mistaken for table names by the FROM pattern.
+    sql_scrubbed = re.sub(r'\b(?:EXTRACT|SUBSTRING)\s*\([^)]+\)', '__FUNC__', sql, flags=re.IGNORECASE)
+    sql_lower = sql_scrubbed.lower()
+
     for pattern in TABLE_PATTERNS:
         matches = re.findall(pattern, sql_lower, re.IGNORECASE)
         for match in matches:
@@ -76,7 +79,7 @@ def extract_tables(sql: str) -> Set[str]:
             if len(match) <= 2:
                 continue
 
-            # Skip Athena/Presto built-in pseudo-columns and system functions
+            # Skip built-in pseudo-columns and system functions
             if match.lower() in {'current_date', 'current_time', 'current_timestamp',
                                    'localtime', 'localtimestamp', 'now'}:
                 continue
@@ -93,30 +96,30 @@ def validate_sql(sql: str, allowed_tables: List[str], dialect: str) -> str:
     Args:
         sql: SQL query string
         allowed_tables: List of tables the user is allowed to query
-        dialect: SQL dialect (e.g., 'athena')
-        
+        dialect: SQL dialect (e.g., 'redshift')
+
     Returns:
         The validated SQL string
-        
+
     Raises:
         ValueError: If SQL fails validation
     """
     if not sql:
         raise ValueError("Empty SQL")
-    
+
     sql_stripped = sql.strip()
-    
+
     # Check for forbidden operations
     if FORBIDDEN.search(sql_stripped):
         forbidden_match = FORBIDDEN.search(sql_stripped)
         raise ValueError(f"Forbidden SQL operation: {forbidden_match.group()}")
 
     # Check for dialect-specific unsupported features
-    if dialect == "athena":
+    if dialect == "redshift":
         sql_lower = sql_stripped.lower()
-        for kw in ATHENA_UNSUPPORTED:
+        for kw in REDSHIFT_UNSUPPORTED:
             if kw in sql_lower:
-                raise ValueError(f"Athena does not support: {kw}")
+                raise ValueError(f"Redshift does not support: {kw}")
 
     # Extract and validate tables - case-insensitive comparison
     found_tables = extract_tables(sql_stripped)

@@ -22,7 +22,7 @@ sample_payloads = [
                 "language": "en"
             },
             "sql": {
-                "dialect": "athena"
+                "dialect": "redshift"
             },
             "execution": {
                 "dry_run": True,
@@ -52,7 +52,7 @@ sample_payloads = [
                 "language": "en"
             },
             "sql": {
-                "dialect": "athena"
+                "dialect": "redshift"
             },
             "execution": {
                 "dry_run": True,
@@ -82,7 +82,7 @@ sample_payloads = [
                 "language": "en"
             },
             "sql": {
-                "dialect": "athena"
+                "dialect": "redshift"
             },
             "execution": {
                 "dry_run": True,
@@ -112,7 +112,7 @@ sample_payloads = [
                 "language": "zh"
             },
             "sql": {
-                "dialect": "athena"
+                "dialect": "redshift"
             },
             "execution": {
                 "dry_run": True,
@@ -142,7 +142,7 @@ sample_payloads = [
                 "language": "en"
             },
             "sql": {
-                "dialect": "athena"
+                "dialect": "redshift"
             },
             "execution": {
                 "dry_run": False,

@@ -5,7 +5,7 @@ Analyzes database schema and generates sample natural language queries
 
 from typing import List, Dict, Any
 from app.schema_loader import load_schema
-from app.athena_config import ATHENA_TARGETS
+from app.redshift_config import REDSHIFT_TARGETS
 
 
 def analyze_schema(target_name: str) -> Dict[str, Any]:
@@ -14,11 +14,11 @@ def analyze_schema(target_name: str) -> Dict[str, Any]:
     for generating query suggestions.
     """
     schema = load_schema(target_name)
-    cfg = ATHENA_TARGETS[target_name]
-    
+    cfg = REDSHIFT_TARGETS[target_name]
+
     analysis = {
         "target": target_name,
-        "database": cfg["database"],
+        "schema": cfg["schema"],
         "tables": []
     }
     
@@ -201,12 +201,11 @@ def get_schema_summary(target_name: str) -> Dict[str, Any]:
     Get a human-readable summary of the database schema.
     """
     analysis = analyze_schema(target_name)
-    cfg = ATHENA_TARGETS[target_name]
-    
+    cfg = REDSHIFT_TARGETS[target_name]
+
     summary = {
         "target": target_name,
-        "database": cfg["database"],
-        "region": cfg["region"],
+        "schema": cfg["schema"],
         "tables": []
     }
     

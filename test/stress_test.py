@@ -107,7 +107,7 @@ VALID_REQUEST_TEMPLATE = {
         "property_uuid": "00000000-0000-0000-0000-000000000000",  # Super user
         "language": "en"
     },
-    "sql": {"dialect": "athena"},
+    "sql": {"dialect": "redshift"},
     "execution": {"dry_run": True, "max_rows": 10, "timeout_ms": 5000},
     "model": {"name": "Ellbendls/Qwen-2.5-3b-Text_to_SQL", "temperature": 0.0, "max_tokens": 256},
     "trace": {"request_id": None, "source": "stress-test"}
@@ -677,7 +677,7 @@ async def run_all_tests(server_url: str, concurrent: int = 10, duration: int = 3
     suite = StressTestSuite(server_url, verbose=True)
     
     print("\n" + "=" * 80)
-    print("NLQ → ATHENA SQL API STRESS TEST")
+    print("NLQ → REDSHIFT SQL API STRESS TEST")
     print("=" * 80)
     print(f"Server URL: {server_url}")
     print(f"Concurrent Users: {concurrent}")

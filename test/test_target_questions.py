@@ -8,7 +8,7 @@ Each question is scored PASS/FAIL based on:
 
 Usage:
   python test/test_target_questions.py              # full execution
-  python test/test_target_questions.py --dry-run    # SQL generation only, no Athena call
+  python test/test_target_questions.py --dry-run    # SQL generation only, no Redshift call
   python test/test_target_questions.py --sql-only   # only print SQL, no assertions
 """
 
@@ -537,7 +537,7 @@ def call_api(question: str, dry_run: bool = False, max_retries: int = 5) -> dict
     payload = {
         "text": question,
         "context": {"property_uuid": PROPERTY_UUID, "language": "en"},
-        "sql": {"dialect": "athena", "tables": []},
+        "sql": {"dialect": "redshift", "tables": []},
         "execution": {"dry_run": dry_run, "max_rows": 100},
         "model": {"max_tokens": 500 if is_trend else 300},
         "trace": {"source": "target_test"},
@@ -557,7 +557,7 @@ def run_tests(dry_run: bool = False, sql_only: bool = False) -> List[Result]:
 
     print(f"\n{'='*72}")
     print(f"  Target Question Tests  ({len(QUESTIONS)} questions)"
-          f"  [{'dry-run' if dry_run else 'LIVE Athena'}]")
+          f"  [{'dry-run' if dry_run else 'LIVE Redshift'}]")
     print(f"{'='*72}\n")
 
     for item in QUESTIONS:
@@ -648,7 +648,7 @@ def print_summary(results: List[Result]):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true",
-                        help="Skip Athena execution, check SQL structure only")
+                        help="Skip Redshift execution, check SQL structure only")
     parser.add_argument("--sql-only", action="store_true",
                         help="Just print generated SQL, skip assertions")
     args = parser.parse_args()

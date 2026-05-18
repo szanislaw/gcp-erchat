@@ -45,7 +45,7 @@ for test in test_queries:
                     "property_uuid": "00000000-0000-0000-0000-000000000000",
                     "language": "en"
                 },
-                "sql": {"dialect": "athena"},
+                "sql": {"dialect": "redshift"},
                 "execution": {
                     "dry_run": test['dry_run'],
                     "max_rows": 100

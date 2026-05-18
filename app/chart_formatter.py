@@ -1,12 +1,12 @@
 # app/chart_formatter.py
-# Transform Athena query results into chart-ready format
+# Transform Redshift query results into chart-ready format
 
 from typing import Dict, Any, List, Optional
 
 
 def format_for_chart(execution_data: Dict[str, Any], display_type: str) -> Optional[Dict[str, Any]]:
     """
-    Transform raw Athena results into chart-friendly format.
+    Transform raw Redshift results into chart-friendly format.
     
     Returns:
         Chart data structure with labels and values, or None if not applicable

@@ -60,8 +60,8 @@ curl -X POST http://128.106.57.220:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -84,8 +84,8 @@ payload = {
         "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
         "user_role": None
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": False, "max_rows": 100, "athena_target": None},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": False, "max_rows": 100, "redshift_target": None},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
 }
@@ -119,7 +119,7 @@ const payload = {
     account_uuid: 'fccb8d60-de9c-4bf8-abd8-fae523c732c6',
     user_role: null
   },
-  sql: { dialect: 'athena', tables: [] },
+  sql: { dialect: "redshift", tables: [] },
   execution: { dry_run: false, max_rows: 100, athena_target: null },
   model: { max_tokens: 512 },
   trace: { source: 'socket' }
@@ -175,13 +175,13 @@ Converts natural language to SQL **without executing** on Athena.
     "user_role": null
   },
   "sql": {
-    "dialect": "athena",
+    "dialect": "redshift",
     "tables": []
   },
   "execution": {
     "dry_run": true,
     "max_rows": 100,
-    "athena_target": null
+    "redshift_target": null
   },
   "model": {
     "max_tokens": 512
@@ -210,8 +210,8 @@ curl -X POST http://128.106.57.220:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -241,7 +241,7 @@ curl -X POST http://128.106.57.220:8000/nlq/execute \
     "request_id": "ea6a29ca-ce23-4235-a3dc-5b9850f6bf16",
     "model_latency_ms": 2847,
     "total_latency_ms": 2963,
-    "athena_target": "peninsula_incident",
+    "redshift_target": "peninsula_incident",
     "allowed_tables": [
       "incident_combine"
     ],
@@ -266,13 +266,13 @@ Generates SQL and executes it on Athena.
     "user_role": null
   },
   "sql": {
-    "dialect": "athena",
+    "dialect": "redshift",
     "tables": []
   },
   "execution": {
     "dry_run": false,
     "max_rows": 100,
-    "athena_target": null
+    "redshift_target": null
   },
   "model": {
     "max_tokens": 512
@@ -296,8 +296,8 @@ curl -X POST http://localhost:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -363,7 +363,7 @@ curl -X POST http://localhost:8000/nlq/execute \
     "request_id": "ea6a29ca-ce23-4235-a3dc-5b9850f6bf16",
     "model_latency_ms": 3024,
     "total_latency_ms": 4856,
-    "athena_target": "peninsula_incident",
+    "redshift_target": "peninsula_incident",
     "allowed_tables": [
       "incident_combine"
     ],
@@ -477,7 +477,7 @@ Generated SQL: `... WHERE property_uuid IN ('c7254cc9-9145-4602-b44b-0c1cff335f8
 - **iWiz does not perform authorization** — it trusts the upstream service
 - **All property UUIDs** in the comma-separated list are treated as authorized
 - **Data filtering** is enforced at the SQL level via `WHERE property_uuid IN (...)`
-- **Table access** is controlled by `sql.tables` (from payload) or `ATHENA_TARGETS` config
+- **Table access** is controlled by `sql.tables` (from payload) or `REDSHIFT_TARGETS` config
 
 ## 🗄️ Database Schema
 
@@ -517,8 +517,8 @@ curl -X POST http://localhost:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -537,8 +537,8 @@ curl -X POST http://localhost:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -557,8 +557,8 @@ curl -X POST http://localhost:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -568,7 +568,7 @@ curl -X POST http://localhost:8000/nlq/execute \
 
 | File | Purpose |
 |------|---------|
-| `app/athena_config.py` | Athena database configurations |
+| `app/redshift_config.py` | Athena database configurations |
 | `app/models.py` | Pydantic request/response models |
 | `app/prompt.py` | LLM prompt construction with property UUID filtering |
 | `app/security.py` | SQL validation and table allowlisting |
@@ -654,8 +654,8 @@ All API requests are logged to `logs/api_requests.json`:
                              │
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│         Athena Executor (athena_client.py)                       │
-│  • boto3 pyathena driver                                        │
+│         Athena Executor (redshift_client.py)                       │
+│  • redshift_connector (IAM)                                        │
 │  • Query execution and result polling                           │
 │  • Result set fetching                                          │
 └────────────────────────────┬────────────────────────────────────┘
@@ -684,7 +684,7 @@ All API requests are logged to `logs/api_requests.json`:
 | `main.py` | FastAPI app entry point | Rate limiting, CORS, async lifespan management |
 | `sqlcoder.py` | SQL generation & fixing | Model inference, LRU caching, date comparison fixes |
 | `permissions.py` | Access control enforcement | Property UUID parsing, SQL filtering |
-| `athena_client.py` | AWS Athena integration | Query execution, result fetching, error handling |
+| `redshift_client.py` | Redshift integration | Query execution, result fetching, error handling |
 | `display_hint.py` | Display type recommendation | SQL pattern analysis, row/column heuristics |
 | `input_validator.py` | Input sanitization | XSS detection, SQL injection prevention |
 | `rate_limiter.py` | Request rate control | Token bucket, queue management, backpressure |
@@ -781,7 +781,7 @@ The API provides flexible display type configuration through the `display` field
 {
   "text": "How many incidents per status?",
   "context": { ... },
-  "sql": { "dialect": "athena" },
+  "sql": { "dialect": "redshift" },
   "execution": { "dry_run": false }
 }
 ```
@@ -803,7 +803,7 @@ The API response will include a recommended display type:
 {
   "text": "How many incidents per status?",
   "context": { ... },
-  "sql": { "dialect": "athena" },
+  "sql": { "dialect": "redshift" },
   "execution": { "dry_run": false },
   "display": {
     "type": "pie"
@@ -856,8 +856,8 @@ curl -X POST http://localhost:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -904,8 +904,8 @@ curl -X POST http://localhost:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -923,8 +923,8 @@ curl -X POST http://localhost:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "display": {"type": "bar"},
     "trace": {"source": "socket"}
@@ -976,8 +976,8 @@ curl -X POST http://localhost:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -1030,8 +1030,8 @@ curl -X POST http://localhost:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -1089,8 +1089,8 @@ curl -X POST http://localhost:8000/nlq/execute \
       "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -1252,8 +1252,8 @@ curl -X POST http://localhost:8000/nlq/execute \
       "account_uuid": "account-uuid",
       "user_role": null
     },
-    "sql": {"dialect": "athena", "tables": []},
-    "execution": {"dry_run": false, "max_rows": 100, "athena_target": null},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": false, "max_rows": 100, "redshift_target": null},
     "model": {"max_tokens": 512},
     "trace": {"source": "socket"}
   }'
@@ -1291,10 +1291,10 @@ _executor = ThreadPoolExecutor(max_workers=4)  # For model inference
 
 ### Database Configuration
 
-Athena targets are defined in `app/athena_config.py`:
+Athena targets are defined in `app/redshift_config.py`:
 
 ```python
-ATHENA_TARGETS = {
+REDSHIFT_TARGETS = {
     "peninsula_incident": {
         "database": "peninsula_incident",
         "workgroup": "primary",
@@ -1327,7 +1327,7 @@ See `/documentation` folder for:
 
 **Problem:** 400 Bad Request - Table not allowed
 
-**Solution:** Check that the Athena target configuration in `app/athena_config.py` includes the required tables
+**Solution:** Check that the Athena target configuration in `app/redshift_config.py` includes the required tables
 
 ---
 

@@ -12,7 +12,7 @@
         "language": "en"
       },
       "sql": {
-        "dialect": "athena"
+        "dialect": "redshift"
       },
       "execution": {
         "dry_run": true,
@@ -53,7 +53,7 @@
         "language": "en"
       },
       "sql": {
-        "dialect": "athena"
+        "dialect": "redshift"
       },
       "execution": {
         "dry_run": true,
@@ -97,7 +97,7 @@
         "language": "en"
       },
       "sql": {
-        "dialect": "athena"
+        "dialect": "redshift"
       },
       "execution": {
         "dry_run": true,
@@ -140,7 +140,7 @@
         "language": "zh"
       },
       "sql": {
-        "dialect": "athena"
+        "dialect": "redshift"
       },
       "execution": {
         "dry_run": true,
@@ -181,7 +181,7 @@
         "language": "en"
       },
       "sql": {
-        "dialect": "athena"
+        "dialect": "redshift"
       },
       "execution": {
         "dry_run": false,

@@ -12,9 +12,7 @@ class Context(BaseModel):
 
 
 class SQLConfig(BaseModel):
-    # Lock to Athena for now
-    # Tables are determined by account/property UUID permissions
-    dialect: Literal["athena"]
+    dialect: Literal["redshift"]
     tables: List[str] = []  # Optional - caller can specify allowed tables
 
 
@@ -22,7 +20,7 @@ class ExecutionConfig(BaseModel):
     dry_run: bool = True
     max_rows: int = 100
     timeout_ms: int = 5000
-    athena_target: Optional[str] = None  # If null, server uses default
+    redshift_target: Optional[str] = None  # If null, server uses default
 
 
 class ModelConfig(BaseModel):

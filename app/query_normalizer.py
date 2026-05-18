@@ -1,7 +1,7 @@
 # app/query_normalizer.py
 # Natural language query normalization for ~90% accuracy
 # Handles entity aliases, abbreviations, and fuzzy matching
-# Updated with real data from Athena database
+# Updated with real data from Redshift database
 
 from typing import Dict, List, Tuple, Optional, Set
 from functools import lru_cache
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # ============================================================================
 # ENTITY ALIASES: Maps common variations to canonical database values
-# Data sourced from actual Athena database queries
+# Data sourced from actual Redshift database queries
 # ============================================================================
 
 # Property/Hotel name aliases -> canonical name in database
@@ -60,37 +60,9 @@ PROPERTY_ALIASES: Dict[str, str] = {
     "the peninsula": "The Peninsula",  # Keep generic
 }
 
-# Severity aliases -> canonical database value (actual DB values: high, medium, low, critical)
-SEVERITY_ALIASES: Dict[str, str] = {
-    # Critical mappings
-    "critical": "critical",
-    "emergency": "critical",
-    "urgent": "critical",
-    
-    # High mappings
-    "high": "high",
-    "important": "high",
-    "serious": "high",
-    "severe": "high",
-    "major": "high",
-    "priority": "high",
-    
-    # Medium mappings
-    "medium": "medium",
-    "moderate": "medium",
-    "normal": "medium",
-    "standard": "medium",
-    "regular": "medium",
-    "average": "medium",
-    
-    # Low mappings  
-    "low": "low",
-    "minor": "low",
-    "trivial": "low",
-    "small": "low",
-    "insignificant": "low",
-    "minimal": "low",
-}
+# Severity aliases — NOT used for maintenance order schema (no severity column).
+# Kept empty to avoid injecting false severity_name hints.
+SEVERITY_ALIASES: Dict[str, str] = {}
 
 # Status aliases -> canonical database value (actual DB values: pending, completed, cancelled)
 STATUS_ALIASES: Dict[str, str] = {
@@ -163,10 +135,6 @@ DEPARTMENT_ALIASES: Dict[str, str] = {
     # Engineering
     "eng": "Engineering",
     "engineering": "Engineering",
-    "maintenance": "Engineering",
-    "technical": "Engineering",
-    "repair": "Engineering",
-    "repairs": "Engineering",
     
     # Security / Safety
     "sec": "Security",

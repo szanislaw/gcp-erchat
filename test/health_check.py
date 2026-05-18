@@ -42,7 +42,7 @@ try:
                 "property_uuid": "00000000-0000-0000-0000-000000000000",
                 "language": "en"
             },
-            "sql": {"dialect": "athena"},
+            "sql": {"dialect": "redshift"},
             "execution": {"dry_run": True, "max_rows": 5},
             "model": {
                 "name": "Qwen/Qwen2.5-Coder-7B-Instruct",

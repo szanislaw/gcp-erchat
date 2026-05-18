@@ -6,8 +6,9 @@ pydantic
 # Environment variables
 python-dotenv
 
-# AWS integration
+# AWS integration (for IAM-based Redshift auth)
 boto3
+redshift_connector
 
 # ML/AI dependencies
 torch

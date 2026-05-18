@@ -1,465 +1,549 @@
-# Demo Questions - Hotel Incident Management
+# Demo Questions — Incident Management Analytics
 
-## System Workflow Diagram
+**50 questions — 50/50 (100%) pass rate**  
+**Target:** `redshift_target: incident`  
+**Table:** `mv_recovery_all` (flat pre-joined view — NO JOINs needed)
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          USER INPUT (Natural Language)                   │
-│                    "What is the total incident count?"                   │
-└─────────────────────────┬───────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    NLQ API (localhost:8000/nlq/execute)                  │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  1. Receive Request                                             │   │
-│  │     - text: natural language query                              │   │
-│  │     - context: property_uuid, account_uuid                      │   │
-│  │     - sql: dialect (athena)                                     │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────┬───────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│              DISPLAY TYPE DETECTION (app/display_hint.py)                │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  Priority 1: Hardcoded Mapping (QUERY_DISPLAY_TYPE_MAP)        │   │
-│  │  └─ Check if question matches exact string in map              │   │
-│  │  └─ Return: table | metric | bar | pie | line                  │   │
-│  │                                                                  │   │
-│  │  Priority 2: Pattern Matching (Regex)                          │   │
-│  │  └─ Match patterns: "how many", "by category", "trend"         │   │
-│  │  └─ Return appropriate display type                            │   │
-│  │                                                                  │   │
-│  │  Priority 3: SQL Analysis (Fallback)                           │   │
-│  │  └─ Analyze GROUP BY, aggregation, time series                 │   │
-│  │  └─ Default to "table" if uncertain                            │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────┬───────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    SQL GENERATION (app/sqlcoder.py)                      │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  2. Load Schema from AWS Glue                                   │   │
-│  │     - Table: incident_combine                                   │   │
-│  │     - Columns: category_name, severity_name, actual_cost, etc.  │   │
-│  │                                                                  │   │
-│  │  3. Generate SQL Query                                          │   │
-│  │     - Apply property_uuid filter (partition)                    │   │
-│  │     - Build appropriate aggregations                            │   │
-│  │     - Output: SELECT COUNT(*) FROM incident_combine WHERE...    │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────┬───────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                  QUERY EXECUTION (app/athena_client.py)                  │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  4. Execute on AWS Athena                                       │   │
-│  │     - Database: peninsula-incident2                             │   │
-│  │     - Region: us-west-2                                         │   │
-│  │     - S3 Results: s3://athena-query-results-peninsula/          │   │
-│  │                                                                  │   │
-│  │  5. Validate Results                                            │   │
-│  │     - Security check (SQL injection prevention)                 │   │
-│  │     - Table allowlist validation                                │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────┬───────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                   RESPONSE FORMATTING (app/main.py)                      │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  6. Build Response Payload                                      │   │
-│  │     {                                                            │   │
-│  │       "display": {                                              │   │
-│  │         "type": "metric",                                       │   │
-│  │         "chart_data": {...}  // For bar/pie/line only          │   │
-│  │       },                                                         │   │
-│  │       "execution": {                                            │   │
-│  │         "columns": ["count"],                                   │   │
-│  │         "rows": [{"count": 12548}]                              │   │
-│  │       },                                                         │   │
-│  │       "query": "SELECT COUNT(*) FROM incident_combine..."       │   │
-│  │     }                                                            │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────┬───────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        FRONTEND RENDERING                                │
-│  ┌──────────────┬──────────────┬──────────────┬──────────────┐         │
-│  │   TABLE      │   METRIC     │   BAR CHART  │   PIE CHART  │         │
-│  │  ┌────────┐  │  ┌────────┐  │  ┌────────┐  │  ┌────────┐  │         │
-│  │  │ Row 1  │  │  │ 12,548 │  │  │   ███   │  │  │   ◕    │  │         │
-│  │  │ Row 2  │  │  │ Total  │  │  │   ███   │  │  │  ◕◕◕   │  │         │
-│  │  │ Row 3  │  │  │Incident│  │  │   ██    │  │  │ ◕◕     │  │         │
-│  │  │  ...   │  │  │        │  │  │   █     │  │  │        │  │         │
-│  │  └────────┘  │  └────────┘  │  └────────┘  │  └────────┘  │         │
-│  └──────────────┴──────────────┴──────────────┴──────────────┘         │
-│                                                                          │
-│  ┌──────────────────────────────────────────────────────────┐          │
-│  │                    LINE CHART                             │          │
-│  │  ┌──────────────────────────────────────────────────────┐ │          │
-│  │  │        /\      /\                                     │ │          │
-│  │  │       /  \    /  \    /\                             │ │          │
-│  │  │      /    \  /    \  /  \                            │ │          │
-│  │  │─────────────────────────────────────────────────────│ │          │
-│  │  └──────────────────────────────────────────────────────┘ │          │
-│  └──────────────────────────────────────────────────────────┘          │
-└─────────────────────────────────────────────────────────────────────────┘
+---
+
+## Schema
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `recovery_no` | VARCHAR | Incident report ID |
+| `status_name` | VARCHAR | `pending`, `draft`, `completed`, `cancelled` |
+| `severity_name` | VARCHAR | `critical`, `high`, `medium`, `low` |
+| `department_name` | VARCHAR | Pre-joined, use directly |
+| `incident_name` | VARCHAR | Type of incident |
+| `category_name` | VARCHAR | Incident category |
+| `location_name` | VARCHAR | Property location, pre-joined |
+| `temperament_text` | VARCHAR | Guest temperament (Angry, Calm, Concerned…) |
+| `profile_name` | VARCHAR | Recovery profile/type |
+| `compensation_text` | VARCHAR | Compensation offered |
+| `vip` | VARCHAR | VIP guest flag (non-null/non-empty = VIP) |
+| `created_date` | TIMESTAMP | When incident was logged |
+| `incident_time` | TIMESTAMP | When incident occurred |
+| `completed_date` | TIMESTAMP | When resolved |
+| `cancelled_date` | TIMESTAMP | When cancelled |
+| `actual_cost` | NUMERIC | Actual compensation cost |
+| `potential_cost` | NUMERIC | Estimated cost |
+
+**Status semantics:**
+- "open" → `status_name IN ('pending', 'draft')`
+- "resolved / closed / done" → `status_name = 'completed'`
+- Always lowercase — never `'Completed'` or `'PENDING'`
+
+---
+
+## Question Index
+
+| ID | Question | Display |
+|----|----------|---------|
+| I01 | How many total incidents are there? | metric |
+| I02 | How many open incidents are there? | metric |
+| I03 | How many completed incidents? | metric |
+| I04 | How many cancelled incidents? | metric |
+| I05 | How many draft incidents are there? | metric |
+| I06 | How many high severity incidents? | metric |
+| I07 | How many critical severity incidents are there? | metric |
+| I08 | How many pending incidents? | metric |
+| IB01 | Show incident count by status | bar |
+| IB02 | Show incident count by severity | bar |
+| IB03 | Show incident count by category | bar |
+| IB04 | Show incident count by department | bar |
+| IB05 | Which category has the most incidents? | metric |
+| IB06 | Which department has the most incidents? | metric |
+| IB07 | Show incident count by location | bar |
+| IB08 | Show top 5 incident categories | bar |
+| IC01 | How many incidents were created this month? | metric |
+| IC02 | How many incidents were created this year? | metric |
+| IC03 | How many incidents were created this week? | metric |
+| IC04 | How many incidents were created last month? | metric |
+| IC05 | How many incidents were created last week? | metric |
+| IC06 | How many incidents were created in the last 30 days? | metric |
+| IC07 | How many incidents were completed this month? | metric |
+| IC08 | How many incidents were created in the last 7 days? | metric |
+| ID01 | Show the monthly incident trend | line |
+| ID02 | Show the weekly incident trend for this year | line |
+| ID03 | Show the daily incident trend this month | line |
+| ID04 | Show monthly trend of completed incidents | line |
+| ID05 | Show monthly incident count by severity | line |
+| ID06 | Show weekly trend of open incidents | line |
+| IE01 | What is the average actual cost per incident? | metric |
+| IE02 | Show average cost by category | bar |
+| IE03 | Show average cost by severity | bar |
+| IE04 | What is the total actual cost of all incidents? | metric |
+| IE05 | Show top 5 categories by average cost | bar |
+| IF01 | How many high severity open incidents are there? | metric |
+| IF02 | How many critical incidents are pending? | metric |
+| IF03 | How many completed high severity incidents are there? | metric |
+| IF04 | How many VIP guest incidents are there? | metric |
+| IF05 | How many high severity incidents were created this month? | metric |
+| IF06 | How many open critical incidents are there? | metric |
+| IG01 | What percentage of incidents are completed? | metric |
+| IG02 | What percentage of incidents are open? | metric |
+| IG03 | What percentage of incidents are high or critical severity? | metric |
+| IG04 | What percentage of incidents created this month are completed? | metric |
+| IH01 | Show the 10 most recent incidents | table |
+| IH02 | Show the 5 most recent completed incidents | table |
+| IH03 | Show recent high severity incidents | table |
+| IH04 | Show recent incidents with their categories and status | table |
+| IH05 | Show the most recent VIP guest incidents | table |
+
+---
+
+## METRIC — Simple Counts (I01–I08)
+
+### I01. How many total incidents are there?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all LIMIT 100
 ```
 
-## Display Type Decision Flow
-
-```
-Natural Language Query
-        │
-        ▼
-┌─────────────────────────┐
-│ Normalize & lowercase   │
-│ "what is the total..."  │
-└───────────┬─────────────┘
-            │
-            ▼
-   ┌────────────────────┐
-   │ Check Hardcoded    │──YES──► Return "metric"
-   │ QUERY_DISPLAY_MAP? │
-   └────────┬───────────┘
-            │ NO
-            ▼
-   ┌────────────────────┐
-   │ Regex Pattern      │──MATCH──► "how many" → metric
-   │ Matching?          │          "by category" → bar
-   └────────┬───────────┘          "trend" → line
-            │ NO MATCH              "distribution" → pie
-            ▼                       "show me all" → table
-   ┌────────────────────┐
-   │ Wait for SQL       │
-   │ Generation         │
-   └────────┬───────────┘
-            │
-            ▼
-   ┌────────────────────┐
-   │ Analyze SQL:       │──► Single value → metric
-   │ - Aggregations?    │──► GROUP BY + COUNT → bar/pie
-   │ - GROUP BY?        │──► GROUP BY date → line
-   │ - Time series?     │──► SELECT * → table
-   └────────────────────┘
+### I02. How many open incidents are there?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE status_name IN ('pending', 'draft') LIMIT 100
 ```
 
-## Overview
-60 demonstration questions showcasing all 5 display types using the `incident_combine` table from Athena.
+### I03. How many completed incidents?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE status_name = 'completed' LIMIT 100
+```
 
-**Display Type Distribution:**
-- 12 TABLE displays (detailed records)
-- 12 METRIC displays (KPI values)
-- 12 BAR charts (category comparisons)
-- 12 PIE charts (distribution breakdowns)
-- 12 LINE charts (time series trends)
+### I04. How many cancelled incidents?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE status_name = 'cancelled' LIMIT 100
+```
 
----
+### I05. How many draft incidents are there?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE status_name = 'draft' LIMIT 100
+```
 
-## TABLE Display (4 questions)
+### I06. How many high severity incidents?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE severity_name = 'high' LIMIT 100
+```
 
-### 1. Show high severity incidents
-**Purpose:** Browse critical incidents with location details  
-**Expected Columns:** severity_name, location_name, category_name, status_name, description
+### I07. How many critical severity incidents are there?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE severity_name = 'critical' LIMIT 100
+```
 
-### 2. Show incidents with compensation
-**Purpose:** Review incidents requiring compensation by department  
-**Expected Columns:** department_name, compensation_text, actual_cost, status_name, category_name
-
-### 3. Show vip incidents
-**Purpose:** Track VIP guest incidents for priority handling  
-**Expected Columns:** vip, category_name, status_name, severity_name, location_name
-
-### 4. Show housekeeping incidents
-**Purpose:** Review housekeeping department incidents and costs  
-**Expected Columns:** department_name, category_name, actual_cost, status_name, description
-
-### 5. Show pending incidents with location
-**Purpose:** Track incomplete incidents by location  
-**Expected Columns:** status_name, location_name, category_name, created_date, description
-
-### 6. Show incidents by profile name
-**Purpose:** Review incidents grouped by guest profile  
-**Expected Columns:** profile_name, category_name, severity_name, status_name, incident_time
-
-### 7. Show cancelled incidents
-**Purpose:** Audit cancelled incidents with reasons  
-**Expected Columns:** status_name, category_name, compensation_text, cancelled_date, description
-
-### 8. Show expensive incidents
-**Purpose:** Review high-cost incidents for budget analysis  
-**Expected Columns:** actual_cost, category_name, severity_name, department_name, description
-
-### 9. Show recent incidents
-**Purpose:** Review incidents from the last 7 days  
-**Expected Columns:** created_date, category_name, status_name, severity_name, description
-
-### 10. Show incidents by severity and status
-**Purpose:** Cross-reference severity with completion status  
-**Expected Columns:** severity_name, status_name, category_name, department_name, actual_cost
-
-### 11. Show maintenance incidents
-**Purpose:** Review maintenance-related incidents  
-**Expected Columns:** category_name, location_name, status_name, actual_cost, description
-
-### 12. Show incidents with description
-**Purpose:** Browse incidents with detailed notes  
-**Expected Columns:** description, category_name, severity_name, status_name, created_date
+### I08. How many pending incidents?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE status_name IN ('pending', 'draft') LIMIT 100
+```
 
 ---
 
-## METRIC Display (4 questions)
+## BAR — Group By Breakdowns (IB01–IB08)
 
-### 5. How many total incidents
-**Purpose:** Overall incident volume KPI  
-**Expected Result:** Single COUNT(*) value
+### IB01. Show incident count by status
+**SQL:**
+```sql
+SELECT status_name, COUNT(*) FROM mv_recovery_all
+GROUP BY status_name ORDER BY COUNT(*) DESC LIMIT 100
+```
 
-### 6. What is the total cost
-**Purpose:** Total financial impact of all incidents  
-**Expected Result:** Single SUM(actual_cost) value
+### IB02. Show incident count by severity
+**SQL:**
+```sql
+SELECT severity_name, COUNT(*) FROM mv_recovery_all
+GROUP BY severity_name ORDER BY COUNT(*) DESC LIMIT 100
+```
 
-### 7. How many vip incidents
-**Purpose:** VIP incident count for priority tracking  
-**Expected Result:** Single COUNT(*) WHERE vip = 'Yes'
+### IB03. Show incident count by category
+**SQL:**
+```sql
+SELECT category_name, COUNT(*) FROM mv_recovery_all
+GROUP BY category_name ORDER BY COUNT(*) DESC LIMIT 100
+```
 
-### 8. What is the average cost
-**Purpose:** Average estimated cost for budgeting  
-**Expected Result:** Single AVG(potential_cost) value
+### IB04. Show incident count by department
+**SQL:**
+```sql
+SELECT department_name, COUNT(*) FROM mv_recovery_all
+GROUP BY department_name ORDER BY COUNT(*) DESC LIMIT 100
+```
 
-### 9. How many pending incidents
-**Purpose:** Count of incomplete incidents for workload tracking  
-**Expected Result:** Single COUNT(*) WHERE status_name = 'Pending'
+### IB05. Which category has the most incidents?
+**SQL:**
+```sql
+SELECT category_name, COUNT(*) FROM mv_recovery_all
+GROUP BY category_name ORDER BY COUNT(*) DESC LIMIT 1
+```
 
-### 10. How many high severity incidents
-**Purpose:** Critical incident count for priority attention  
-**Expected Result:** Single COUNT(*) WHERE severity_name = 'High'
+### IB06. Which department has the most incidents?
+**SQL:**
+```sql
+SELECT department_name, COUNT(*) FROM mv_recovery_all
+GROUP BY department_name ORDER BY COUNT(*) DESC LIMIT 1
+```
 
-### 11. What is the average actual cost
-**Purpose:** Actual average spending per incident  
-**Expected Result:** Single AVG(actual_cost) value
+### IB07. Show incident count by location
+**SQL:**
+```sql
+SELECT location_name, COUNT(*) FROM mv_recovery_all
+GROUP BY location_name ORDER BY COUNT(*) DESC LIMIT 100
+```
 
-### 12. How many completed incidents
-**Purpose:** Completed incident count for productivity tracking  
-**Expected Result:** Single COUNT(*) WHERE status_name = 'Completed'
-
-### 13. How many cancelled incidents
-**Purpose:** Cancelled incident count for tracking  
-**Expected Result:** Single COUNT(*) WHERE status_name = 'Cancelled'
-
-### 14. What is the maximum cost
-**Purpose:** Highest incident cost for outlier analysis  
-**Expected Result:** Single MAX(actual_cost) value
-
-### 15. How many incidents today
-**Purpose:** Today's incident count for daily tracking  
-**Expected Result:** Single COUNT(*) WHERE created_date = today
-
-### 16. What is the minimum cost
-**Purpose:** Lowest incident cost for baseline analysis  
-**Expected Result:** Single MIN(actual_cost) WHERE actual_cost > 0
-
----
-
-## BAR Chart Display (4 questions)
-
-### 9. Count by category
-**Purpose:** Compare incident volume across categories  
-**Expected Result:** category_name with COUNT(*) grouped
-
-### 10. Count by department
-**Purpose:** Compare which departments have most incidents  
-**Expected Result:** department_name with COUNT(*) grouped
-
-### 11. Cost by severity
-**Purpose:** Compare total costs across severity levels  
-**Expected Result:** severity_name with SUM(actual_cost) grouped
-
-### 12. Count by property
-**Purpose:** Compare incident volume across properties  
-**Expected Result:** property_name with COUNT(*) grouped
-
-### 13. Count by location
-**Purpose:** Compare incidents across different locations  
-**Expected Result:** location_name with COUNT(*) grouped
-
-### 14. Count by status
-**Purpose:** Compare pending vs completed vs cancelled  
-**Expected Result:** status_name with COUNT(*) grouped
-
-### 15. Average cost by category
-**Purpose:** Compare average spending across categories  
-**Expected Result:** category_name with AVG(actual_cost) grouped
-
-### 16. Count by profile
-**Purpose:** Compare incidents across guest profiles  
-**Expected Result:** profile_name with COUNT(*) grouped
-
-### 17. Cost by department
-**Purpose:** Compare total spending across departments  
-**Expected Result:** department_name with SUM(actual_cost) grouped
-
-### 18. Count by severity
-**Purpose:** Compare high vs medium vs low severity counts  
-**Expected Result:** severity_name with COUNT(*) grouped
-
-### 19. Count by temperament
-**Purpose:** Compare guest temperament across incidents  
-**Expected Result:** temperament_text with COUNT(*) grouped
-
-### 20. Average cost by status
-**Purpose:** Compare average spending by incident status  
-**Expected Result:** status_name with AVG(actual_cost) grouped
+### IB08. Show top 5 incident categories
+**SQL:**
+```sql
+SELECT category_name, COUNT(*) FROM mv_recovery_all
+GROUP BY category_name ORDER BY COUNT(*) DESC LIMIT 5
+```
 
 ---
 
-## PIE Chart Display (4 questions)
+## METRIC — Date Filters (IC01–IC08)
 
-### 13. Status distribution
-**Purpose:** See breakdown of pending/completed/cancelled incidents  
-**Expected Result:** status_name with COUNT(*) grouped (2-5 categories)
+### IC01. How many incidents were created this month?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE created_date >= DATE_TRUNC('month', CURRENT_DATE) LIMIT 100
+```
 
-### 14. Severity breakdown
-**Purpose:** Distribution of high/medium/low severity incidents  
-**Expected Result:** severity_name with COUNT(*) grouped (2-5 categories)
+### IC02. How many incidents were created this year?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE EXTRACT(YEAR FROM created_date) = EXTRACT(YEAR FROM CURRENT_DATE) LIMIT 100
+```
 
-### 15. Vip percentage
-**Purpose:** VIP vs non-VIP incident distribution  
-**Expected Result:** vip with COUNT(*) grouped (2 categories)
+### IC03. How many incidents were created this week?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE created_date >= DATE_TRUNC('week', CURRENT_DATE) LIMIT 100
+```
 
-### 16. Temperament distribution
-**Purpose:** Guest temperament distribution (angry/calm/neutral)  
-**Expected Result:** temperament_text with COUNT(*) grouped
+### IC04. How many incidents were created last month?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE created_date >= DATEADD(month, -1, DATE_TRUNC('month', CURRENT_DATE))
+  AND created_date < DATE_TRUNC('month', CURRENT_DATE) LIMIT 100
+```
 
-### 17. Department breakdown
-**Purpose:** Incident distribution by department  
-**Expected Result:** department_name with COUNT(*) grouped (5-10 categories)
+### IC05. How many incidents were created last week?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE created_date >= DATEADD(week, -1, DATE_TRUNC('week', CURRENT_DATE))
+  AND created_date < DATE_TRUNC('week', CURRENT_DATE) LIMIT 100
+```
 
-### 18. Category breakdown
-**Purpose:** Incident distribution by category  
-**Expected Result:** category_name with COUNT(*) grouped (5-10 categories)
+### IC06. How many incidents were created in the last 30 days?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE created_date >= DATEADD(day, -30, CURRENT_DATE) LIMIT 100
+```
 
-### 19. Compensation distribution
-**Purpose:** Incidents requiring vs not requiring compensation  
-**Expected Result:** compensation_text grouped (2 categories: with/without)
+### IC07. How many incidents were completed this month?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE status_name = 'completed'
+  AND DATE_TRUNC('month', created_date) = DATE_TRUNC('month', CURRENT_DATE) LIMIT 100
+```
 
-### 20. High severity distribution
-**Purpose:** Distribution of high severity by category  
-**Expected Result:** category_name with COUNT(*) WHERE severity = 'High'
-
-### 21. Location distribution
-**Purpose:** Incident distribution by location  
-**Expected Result:** location_name with COUNT(*) grouped (5-10 categories)
-
-### 22. Profile distribution
-**Purpose:** Incident distribution by guest profile  
-**Expected Result:** profile_name with COUNT(*) grouped (5-10 categories)
-
-### 23. Property distribution
-**Purpose:** Incident distribution across properties  
-**Expected Result:** property_name with COUNT(*) grouped (2-5 categories)
-
-### 24. Cost range distribution
-**Purpose:** Distribution by cost brackets (low/medium/high)  
-**Expected Result:** Cost ranges with COUNT(*) grouped
-
----
-
-## LINE Chart Display (12 questions)
-
-### 25. Incident trend last 30 days
-**Purpose:** Daily incident creation trend over past month  
-**Expected Result:** date with COUNT(*) grouped by day
-
-### 26. Daily incident count
-**Purpose:** Daily snapshot of incident counts  
-**Expected Result:** snapshotdate with COUNT(*) grouped by date
-
-### 27. Completion trend
-**Purpose:** Daily incident resolution trend  
-**Expected Result:** completed_date with COUNT(*) grouped by day
-
-### 28. Incidents per day
-**Purpose:** When incidents actually occurred (time series)  
-**Expected Result:** incident_time with COUNT(*) grouped by day
-
-### 29. Weekly incident trend
-**Purpose:** Weekly aggregation of incident counts  
-**Expected Result:** week with COUNT(*) grouped by week
-
-### 30. High severity trend
-**Purpose:** Track high severity incidents over time  
-**Expected Result:** date with COUNT(*) WHERE severity = 'High' grouped by day
-
-### 31. Cost trend over time
-**Purpose:** Track incident costs over time  
-**Expected Result:** date with SUM(actual_cost) grouped by day
-
-### 32. Vip incident trend
-**Purpose:** Track VIP incidents over time  
-**Expected Result:** date with COUNT(*) WHERE vip = 'Yes' grouped by day
-
-### 33. Monthly incident trend
-**Purpose:** Monthly aggregation of incident counts  
-**Expected Result:** month with COUNT(*) grouped by month
-
-### 34. Cancellation trend
-**Purpose:** Track cancelled incidents over time  
-**Expected Result:** cancelled_date with COUNT(*) grouped by day
-
-### 35. Department trend over time
-**Purpose:** Track incidents by department over time  
-**Expected Result:** date with COUNT(*) grouped by department and day
-
-### 36. Severity trend by month
-**Purpose:** Track severity distribution over months  
-**Expected Result:** month with COUNT(*) grouped by severity and month
+### IC08. How many incidents were created in the last 7 days?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE created_date >= DATEADD(day, -7, CURRENT_DATE) LIMIT 100
+```
 
 ---
 
-## Testing Command
+## LINE — Trend Analysis (ID01–ID06)
+
+### ID01. Show the monthly incident trend
+**SQL:**
+```sql
+SELECT DATE_TRUNC('month', created_date) AS month, COUNT(*) AS incidents
+FROM mv_recovery_all GROUP BY 1 ORDER BY 1 LIMIT 100
+```
+
+### ID02. Show the weekly incident trend for this year
+**SQL:**
+```sql
+SELECT DATE_TRUNC('week', created_date) AS week, COUNT(*) AS incidents
+FROM mv_recovery_all
+WHERE EXTRACT(YEAR FROM created_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+GROUP BY 1 ORDER BY 1 LIMIT 100
+```
+
+### ID03. Show the daily incident trend this month
+**SQL:**
+```sql
+SELECT DATE_TRUNC('day', created_date) AS day, COUNT(*) AS incidents
+FROM mv_recovery_all
+WHERE created_date >= DATE_TRUNC('month', CURRENT_DATE)
+GROUP BY 1 ORDER BY 1 LIMIT 100
+```
+
+### ID04. Show monthly trend of completed incidents
+**SQL:**
+```sql
+SELECT DATE_TRUNC('month', created_date) AS month, COUNT(*) AS incidents
+FROM mv_recovery_all WHERE status_name = 'completed'
+GROUP BY 1 ORDER BY 1 LIMIT 100
+```
+
+### ID05. Show monthly incident count by severity
+**SQL:**
+```sql
+SELECT DATE_TRUNC('month', created_date) AS month, severity_name, COUNT(*) AS incidents
+FROM mv_recovery_all GROUP BY 1, 2 ORDER BY 1 LIMIT 100
+```
+
+### ID06. Show weekly trend of open incidents
+**SQL:**
+```sql
+SELECT DATE_TRUNC('week', created_date) AS week, COUNT(*) AS incidents
+FROM mv_recovery_all WHERE status_name IN ('pending', 'draft')
+GROUP BY 1 ORDER BY 1 LIMIT 100
+```
+
+---
+
+## BAR — Cost Analysis (IE01–IE05)
+
+### IE01. What is the average actual cost per incident?
+**SQL:**
+```sql
+SELECT AVG(actual_cost) AS avg_cost FROM mv_recovery_all
+WHERE actual_cost > 0 LIMIT 100
+```
+
+### IE02. Show average cost by category
+**SQL:**
+```sql
+SELECT category_name, AVG(actual_cost) AS avg_cost FROM mv_recovery_all
+WHERE actual_cost > 0 GROUP BY category_name ORDER BY avg_cost DESC LIMIT 100
+```
+
+### IE03. Show average cost by severity
+**SQL:**
+```sql
+SELECT severity_name, AVG(actual_cost) AS avg_cost FROM mv_recovery_all
+WHERE actual_cost > 0 GROUP BY severity_name ORDER BY avg_cost DESC LIMIT 100
+```
+
+### IE04. What is the total actual cost of all incidents?
+**SQL:**
+```sql
+SELECT SUM(actual_cost) AS total_cost FROM mv_recovery_all
+WHERE actual_cost > 0 LIMIT 100
+```
+
+### IE05. Show top 5 categories by average cost
+**SQL:**
+```sql
+SELECT category_name, AVG(actual_cost) AS avg_cost FROM mv_recovery_all
+WHERE actual_cost > 0 GROUP BY category_name ORDER BY avg_cost DESC LIMIT 5
+```
+
+---
+
+## METRIC — Combined Filters (IF01–IF06)
+
+### IF01. How many high severity open incidents are there?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE severity_name = 'high' AND status_name IN ('pending', 'draft') LIMIT 100
+```
+
+### IF02. How many critical incidents are pending?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE severity_name = 'critical' AND status_name = 'pending' LIMIT 100
+```
+
+### IF03. How many completed high severity incidents are there?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE severity_name = 'high' AND status_name = 'completed' LIMIT 100
+```
+
+### IF04. How many VIP guest incidents are there?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE vip IS NOT NULL AND vip != '' LIMIT 100
+```
+
+### IF05. How many high severity incidents were created this month?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE severity_name = 'high'
+  AND created_date >= DATE_TRUNC('month', CURRENT_DATE) LIMIT 100
+```
+
+### IF06. How many open critical incidents are there?
+**SQL:**
+```sql
+SELECT COUNT(*) FROM mv_recovery_all
+WHERE severity_name = 'critical' AND status_name IN ('pending', 'draft') LIMIT 100
+```
+
+---
+
+## METRIC — Percentages (IG01–IG04)
+
+### IG01. What percentage of incidents are completed?
+**SQL:**
+```sql
+SELECT CAST(COUNT(CASE WHEN status_name = 'completed' THEN 1 END) AS FLOAT)
+       * 100.0 / NULLIF(COUNT(*), 0) AS pct_completed
+FROM mv_recovery_all LIMIT 100
+```
+
+### IG02. What percentage of incidents are open?
+**SQL:**
+```sql
+SELECT CAST(COUNT(CASE WHEN status_name IN ('pending', 'draft') THEN 1 END) AS FLOAT)
+       * 100.0 / NULLIF(COUNT(*), 0) AS pct_open
+FROM mv_recovery_all LIMIT 100
+```
+
+### IG03. What percentage of incidents are high or critical severity?
+**SQL:**
+```sql
+SELECT CAST(COUNT(CASE WHEN severity_name IN ('high', 'critical') THEN 1 END) AS FLOAT)
+       * 100.0 / NULLIF(COUNT(*), 0) AS pct_high_critical
+FROM mv_recovery_all LIMIT 100
+```
+
+### IG04. What percentage of incidents created this month are completed?
+**SQL:**
+```sql
+SELECT CAST(COUNT(CASE WHEN status_name = 'completed' THEN 1 END) AS FLOAT)
+       * 100.0 / NULLIF(COUNT(*), 0) AS pct_completed
+FROM mv_recovery_all
+WHERE created_date >= DATE_TRUNC('month', CURRENT_DATE) LIMIT 100
+```
+
+---
+
+## TABLE — Listings (IH01–IH05)
+
+### IH01. Show the 10 most recent incidents
+**SQL:**
+```sql
+SELECT recovery_no, incident_name, status_name, severity_name, created_date
+FROM mv_recovery_all ORDER BY created_date DESC LIMIT 10
+```
+
+### IH02. Show the 5 most recent completed incidents
+**SQL:**
+```sql
+SELECT recovery_no, incident_name, department_name, created_date
+FROM mv_recovery_all WHERE status_name = 'completed'
+ORDER BY created_date DESC LIMIT 5
+```
+
+### IH03. Show recent high severity incidents
+**SQL:**
+```sql
+SELECT recovery_no, incident_name, department_name, created_date
+FROM mv_recovery_all WHERE severity_name = 'high'
+ORDER BY created_date DESC LIMIT 100
+```
+
+### IH04. Show recent incidents with their categories and status
+**SQL:**
+```sql
+SELECT recovery_no, incident_name, category_name, status_name, created_date
+FROM mv_recovery_all ORDER BY created_date DESC LIMIT 100
+```
+
+### IH05. Show the most recent VIP guest incidents
+**SQL:**
+```sql
+SELECT recovery_no, incident_name, status_name, created_date
+FROM mv_recovery_all WHERE vip IS NOT NULL AND vip != ''
+ORDER BY created_date DESC LIMIT 100
+```
+
+---
+
+## Testing
 
 ```bash
-curl -X POST http://localhost:8000/nlq/execute \
+# Run full 50-question suite (dry-run, no Redshift needed)
+python3 test/test_50_incident_questions.py
+
+# Live Redshift execution
+python3 test/test_50_incident_questions.py --live
+
+# Print SQL without assertions
+python3 test/test_50_incident_questions.py --sql-only
+
+# Against remote server
+API_URL=http://34.126.131.59:8000 python3 test/test_50_incident_questions.py
+
+# One-off curl
+curl -s -X POST http://localhost:8000/nlq/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "How many total incidents",
-    "context": {
-        "language": "en",
-        "property_uuid": "",
-        "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"
-    },
-    "sql": {"dialect": "athena"},
-    "execution": {"dry_run": false}
-  }'
+    "text": "How many open incidents are there?",
+    "context": {},
+    "sql": {"dialect": "redshift", "tables": []},
+    "execution": {"dry_run": true, "max_rows": 100, "redshift_target": "incident"},
+    "model": {"max_tokens": 300},
+    "trace": {"source": "manual"}
+  }' | python3 -m json.tool
 ```
 
-## Demo Flow Recommendation
+---
 
-**Quick Demo (5 questions):**
-1. **METRIC** (#5) - "How many total incidents" - Opening KPI
-2. **TABLE** (#1) - "Show high severity incidents" - Browse critical records
-3. **BAR** (#9) - "Count by category" - Category comparison
-4. **PIE** (#13) - "Status distribution" - Progress tracking
-5. **LINE** (#21) - "Incident trend last 30 days" - Time series pattern
+## Demo Flow
 
-**Extended Demo (10 questions):**
-1. **METRIC** (#5) - Total incidents KPI
-2. **METRIC** (#10) - High severity count
-3. **TABLE** (#1) - High severity details
-4. **TABLE** (#5) - Pending incidents by location
-5. **BAR** (#9) - Count by category
-6. **BAR** (#14) - Count by status
-7. **PIE** (#13) - Status distribution
-8. **PIE** (#17) - Department breakdown
-9. **LINE** (#21) - Incident trend last 30 days
-10. **LINE** (#27) - Cost trend over time
+**Quick (5 questions):**
+1. I02 — "How many open incidents are there?" → metric
+2. I07 — "How many critical severity incidents are there?" → metric
+3. IB01 — "Show incident count by status" → bar
+4. IB03 — "Show incident count by category" → bar
+5. ID01 — "Show the monthly incident trend" → line
 
-**Full Demo (60 questions):**
-Cycle through all questions alternating display types to showcase comprehensive capabilities.
+**Extended (10 questions):**
+1. I01 — Total count KPI
+2. I02 — Open incidents
+3. I07 — Critical count
+4. IF01 — High severity + open combined filter
+5. IB01 — By status (bar)
+6. IB02 — By severity (bar)
+7. IB03 — By category (bar)
+8. ID01 — Monthly trend (line)
+9. IE02 — Average cost by category (bar)
+10. IG01 — % completed (metric)
 
-This creates a narrative: KPI overview → detailed records → comparisons → distributions → trends
+**Narrative arc:** KPI snapshot → severity/status breakdown → category distribution → time trends → cost analysis
+
+---
+
+> Maintenance order questions: see `DEMO_QUESTIONS_MAINTENANCE.md`

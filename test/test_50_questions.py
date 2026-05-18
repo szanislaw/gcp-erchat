@@ -4,7 +4,7 @@ Designed to be high-confidence: every question maps to a well-understood
 SQL pattern with tight structural assertions.
 
 Usage:
-  python test/test_50_questions.py              # live Athena
+  python test/test_50_questions.py              # live Redshift
   python test/test_50_questions.py --dry-run    # SQL generation only
   python test/test_50_questions.py --sql-only   # print SQL, no assertions
 """
@@ -536,7 +536,7 @@ def call_api(question: str, dry_run: bool = False) -> dict:
     payload = {
         "text": question,
         "context": {"property_uuid": PROPERTY_UUID, "language": "en"},
-        "sql": {"dialect": "athena", "tables": []},
+        "sql": {"dialect": "redshift", "tables": []},
         "execution": {"dry_run": dry_run, "max_rows": 100},
         "model": {"max_tokens": 500 if is_trend else 300},
         "trace": {"source": "test_50"},
@@ -555,7 +555,7 @@ def run_tests(dry_run: bool = False, sql_only: bool = False) -> List[Result]:
     results = []
     print(f"\n{'='*72}")
     print(f"  50-Question Test Suite  ({len(QUESTIONS)} questions)"
-          f"  [{'dry-run' if dry_run else 'LIVE Athena'}]")
+          f"  [{'dry-run' if dry_run else 'LIVE Redshift'}]")
     print(f"{'='*72}\n")
 
     categories = {
@@ -669,7 +669,7 @@ def print_summary(results: List[Result]):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true",
-                        help="Skip Athena execution, SQL structure check only")
+                        help="Skip Redshift execution, SQL structure check only")
     parser.add_argument("--sql-only", action="store_true",
                         help="Print generated SQL without assertions")
     args = parser.parse_args()

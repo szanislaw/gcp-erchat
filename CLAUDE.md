@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A production FastAPI service that converts natural language questions into AWS Athena SQL queries using a locally-loaded `defog/sqlcoder-7b-2` model. Results are returned with display type hints (table/bar/pie/line/metric) for frontend rendering.
+A production FastAPI service that converts natural language questions into Amazon Redshift SQL queries using a locally-loaded `defog/sqlcoder-7b-2` model. Results are returned with display type hints (table/bar/pie/line/metric) for frontend rendering.
 
 ## Running the Application
 
@@ -36,34 +36,35 @@ python test/test_column_formatting.py   # Column name formatting tests
 python test/stress_test.py              # Load/stress testing
 python test/debug_query.py              # Debug individual queries
 python test/health_check.py             # Health check verification
-python test/eval_corpus.py              # 38-question NL-to-SQL evaluation corpus (100% pass rate)
+python test/eval_corpus.py              # 38-question NL-to-SQL evaluation corpus
 python test/test_target_questions.py    # Target-specific NLQ tests
-python test/test_50_questions.py        # 50-question expanded NLQ test suite (48/50 pass, 96% — A–E perfect, F04/F05 CTE trend failures known/accepted)
+python test/test_50_questions.py        # 50-question expanded NLQ test suite
+python3 test/eval_maintenance.py        # 39-question maintenance eval (37/39 pass, 94%) — primary eval suite
+python3 test/eval_maintenance.py --dry-run              # SQL-only, no Redshift execution (fast)
+python3 test/eval_maintenance.py --category date_filter # Run single category
+python3 test/eval_maintenance.py --id S02 --verbose     # Run single question with SQL output
 ```
 
-To test against the remote server: `API_URL=http://34.126.131.59:8000 python test/test_50_questions.py`
+To test against the remote server: `API_URL=http://34.126.131.59:8000 python3 test/eval_maintenance.py --dry-run`
 
-For offline SQL generation (skips Athena execution), add `"dry_run": true` to the execution payload, or pass `--dry-run` to test scripts that support it.
+For offline SQL generation (skips Redshift execution), add `"dry_run": true` to the execution payload, or pass `--dry-run` to test scripts that support it.
 
 ## Environment Setup
 
 Copy `.env.example` to `.env` and configure:
 
 ```
-# Required: AWS credentials for Athena
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-AWS_REGION=ap-east-1
+# Redshift connection (password auth)
+REDSHIFT_HOST=your-workgroup.region.redshift-serverless.amazonaws.com
+REDSHIFT_PORT=5439
+REDSHIFT_DBNAME=dev
+REDSHIFT_USER=your_username
+REDSHIFT_PASSWORD=your_password
+REDSHIFT_SCHEMA=your_schema_name
 
 # Model: true → 4-bit quantization (~4-5GB VRAM); false → float16 (~13GB VRAM, faster, default for L4 24GB)
 USE_QUANTIZATION=false
-
-# Optional overrides (defaults: 0.0.0.0:8000)
-API_HOST=0.0.0.0
-API_PORT=8000
 ```
-
-Alternatively, use AWS CLI configuration (`aws configure`). The app uses boto3's default credential chain.
 
 Install dependencies: `pip install -r requirements.txt`
 
@@ -77,27 +78,30 @@ The `/nlq/execute` endpoint processes requests through a strict sequential pipel
 
 1. **Input validation** (`app/input_validator.py`) — XSS/injection sanitization
 2. **Rate limiting** (`app/rate_limiter.py`) — token bucket, 2 req/s, burst 10
-3. **Athena target resolution** — maps request to `ATHENA_TARGETS` config (`app/athena_config.py`)
-4. **Prompt construction** (`app/prompt.py`) — loads schema from AWS Glue via `app/schema_loader.py` (cached in-memory), normalizes query (`app/query_normalizer.py`), injects property UUID access restrictions and ENUM column distinct values
+3. **Redshift target resolution** — maps request to `REDSHIFT_TARGETS` config (`app/redshift_config.py`)
+4. **Prompt construction** (`app/prompt.py`) — loads schema from Redshift `information_schema` via `app/schema_loader.py` (cached in-memory), normalizes query (`app/query_normalizer.py`), injects property UUID access restrictions and ENUM column distinct values
    - `get_time_expression_hint()` — detects calendar expressions ('this week', 'last month', etc.) and injects exact SQL filter snippets as entity hints, overriding the model's tendency to use rolling windows
 5. **Model inference** (`app/sqlcoder.py`) — runs sqlcoder-7b-2 in ThreadPoolExecutor (non-blocking); has LRU cache (500 entries)
 6. **SQL post-processing** — applied in order, split across two locations:
    - *Inside `extract_sql()` in `app/sqlcoder.py`:*
-   - `fix_date_part()` — converts `date_part()`/`EXTRACT()` on `snapshotdate` to Athena-native functions
-   - `fix_date_comparisons()` — wraps bare `snapshotdate` references in `date_parse()` (also handles reverse: `<expr> op snapshotdate`)
+   - `fix_date_parse_to_to_date()` — safety net: converts Athena-style `date_parse()` to Redshift `TO_DATE()`
+   - `fix_date_add_to_dateadd()` — safety net: converts Athena-style `date_add()` to Redshift `DATEADD()`
+   - `fix_date_part()` — wraps `date_part()`/`EXTRACT()` on `snapshotdate` (VARCHAR) with `TO_DATE()`
+   - `fix_date_comparisons()` — wraps bare `snapshotdate` references with `TO_DATE()` for date comparisons
    - `fix_bigint_date_comparisons()` — rewrites date predicates on BIGINT timestamp columns to use `snapshotdate`
-   - `fix_interval_syntax()` — converts PostgreSQL `INTERVAL` to `date_add()`
-   - `fix_group_by_aliases()` — replaces SELECT aliases in `GROUP BY` with ordinal positions (Athena rejects aliases)
    - *In `app/main.py` after inference:*
-   - `fix_table_names()` — corrects hallucinated table name variants; falls back to replacing any unknown `FROM/JOIN` table with the primary allowed table
-   - `fix_float_cast()` — replaces `CAST(... AS FLOAT)` with `CAST(... AS DOUBLE)` (Athena does not support FLOAT type)
-   - `fix_invalid_extract_from_table()` — fixes hallucinated `EXTRACT(YEAR/WEEK FROM table_name)` → `date_trunc('week', current_date)`
-   - `fix_impossible_this_period_filter()` — removes self-contradicting `>= date_trunc('week') AND < date_trunc('week')` upper bounds
+   - `fix_snapshotdate()` — replaces hallucinated `snapshotdate` column → `created_date`
+   - `fix_table_names()` — corrects hallucinated table name variants; negative lookbehind prevents clobbering column refs like `department_name`
+   - `fix_spurious_department_join()` — removes spurious `JOIN department` when question doesn't ask about department
+   - `fix_main_table_fk_names()` — converts raw integer FK filters (`WHERE status = 1`) → proper JOIN; skips if JOIN already present
+   - `fix_department_column()` — rewrites `d.department` → `d.department_name` (wrong column alias)
+   - `fix_invalid_extract_from_table()` — fixes hallucinated `EXTRACT(YEAR/WEEK FROM table_name)` → `DATE_TRUNC('week', CURRENT_DATE)`
+   - `fix_impossible_this_period_filter()` — removes self-contradicting `>= DATE_TRUNC('week') AND < DATE_TRUNC('week')` upper bounds
    - `fix_last_week_filter()` — when question says "last week", converts rolling `-7 day` window to calendar Mon–Sun boundary
    - `fix_property_column()` — rewrites `property_name IN (uuid)` → `property IN (uuid)` when model uses wrong column
    - `inject_property_filter()` — injects mandatory `WHERE property IN (...)` if model drops it entirely
 7. **SQL validation** (`app/security.py`) — blocks forbidden operations (DROP/DELETE/etc.), validates table access
-8. **Athena execution** (`app/athena_client.py`) — optional, skipped when `dry_run=true`
+8. **Redshift execution** (`app/redshift_client.py`) — optional, skipped when `dry_run=true`; opens IAM-authenticated connection, sets `search_path`, executes query, closes connection
 9. **Column formatting** (`app/column_formatter.py`) — remaps raw DB column names to human-readable display names (e.g. `category_name` → `Category`, `snapshotdate` → `Date`)
 10. **Display type detection** (`app/display_hint.py`) — priority: user-specified → question pattern matching → SQL structure analysis
 11. **Chart formatting** (`app/chart_formatter.py`) — reshapes data for bar/pie/line/metric displays
@@ -105,29 +109,24 @@ The `/nlq/execute` endpoint processes requests through a strict sequential pipel
 ### Key Data Flow Constraints
 
 - CTE queries (`WITH prev AS (...), curr AS (...) SELECT ...`) are fully supported: `extract_sql()` detects the `WITH` keyword and returns the full CTE; `validate_sql()` excludes CTE alias names from unknown-table checks.
-- Calendar expressions ('this week', 'this month') use `date_trunc()` boundary; rolling windows ('last 7 days', 'last 30 days') use `date_add()`. These are NOT interchangeable — "last week" means Mon–Sun, not -7 days.
-- `snapshotdate` is a `VARCHAR` column — SQL must use `date_parse(snapshotdate, '%Y-%m-%d')` for any date comparisons. The post-processor in `sqlcoder.py` automatically fixes this.
-- `created_date`, `incident_time`, `completed_date`, `cancelled_date` are `BIGINT` timestamps — **never** use these in WHERE clauses for date filtering, only for `ORDER BY`.
+- Calendar expressions ('this week', 'this month') use `DATE_TRUNC()` boundary; rolling windows ('last 7 days', 'last 30 days') use `DATEADD()`. These are NOT interchangeable — "last week" means Mon–Sun, not -7 days.
+- `created_date`, `completed_date`, `cancelled_date`, `assigned_date` are TIMESTAMP columns — no casting needed. Use directly in WHERE clauses.
+- **CRITICAL — `maintenance_order` has NO `department_uuid` column.** The `department` table is in the schema but there is no FK linking it to `maintenance_order`. Any query generating `JOIN department d ON m.department_uuid = d.department_uuid` will fail at runtime with `column m.department_uuid does not exist`. Department-breakdown queries are currently unanswerable with this schema.
 - All queries are capped at `LIMIT 100`.
 - The model is loaded once at startup (`lifespan` context manager) and shared across requests behind a `threading.Lock`.
 
-### Athena Targets (`app/athena_config.py`)
+### Redshift Targets (`app/redshift_config.py`)
 
-Two configured targets:
-- `peninsula_incident` — database `peninsula-incident2`, table `incident_combine`
-- `londoner_granded` — database `londoner_granded`, table `ldco_testing`
+One configured target:
+- `default` — schema `nxg_107747471_q2sj`, tables: `maintenance_order`, `master_maintenance_status`, `master_job_priority`, `department`, `property_location`
 
-Adding a new target: add entries to both `ATHENA_TARGETS` and `ENUM_COLUMNS` dicts; schema is auto-fetched from AWS Glue on first request and cached in-memory. `ENUM_COLUMNS` defines which categorical columns should have their distinct values fetched and injected into the model prompt to improve SQL generation accuracy.
+Adding a new target: add entries to both `REDSHIFT_TARGETS` and `ENUM_COLUMNS` dicts; schema is auto-fetched from `information_schema.columns` on first request and cached in-memory. `ENUM_COLUMNS` defines which categorical columns should have their distinct values fetched and injected into the model prompt to improve SQL generation accuracy.
 
 ### Property-Based Access Control
 
-Authentication is handled externally. The API receives pre-authorized `property_uuid` values in the request context. `app/prompt.py` injects a mandatory `WHERE property_col IN (...)` restriction into the LLM prompt. The property UUID column name is auto-detected via `find_property_uuid_column()` from the Glue schema (tries `property_uuid`, then columns containing both "property" and "uuid", then `property`).
+Authentication is handled externally. The API receives pre-authorized `property_uuid` values in the request context. `app/prompt.py` injects a mandatory `WHERE property_col IN (...)` restriction into the LLM prompt. The property UUID column name is auto-detected via `find_property_uuid_column()` from the schema (tries `property_uuid`, then columns containing both "property" and "uuid", then `property`).
 
-**Critical schema gotcha:** `peninsula_incident` has two similarly-named columns:
-- `property` — **partition key**, holds UUID values used for access control filtering
-- `property_name` — regular VARCHAR column, holds hotel display names (e.g. `'The Peninsula Manila'`)
-
-The model frequently hallucinates `WHERE property_name IN ('uuid')` instead of `WHERE property IN ('uuid')`, returning 0 rows. `fix_property_column()` and `inject_property_filter()` in `app/sqlcoder.py` correct this in post-processing.
+The `maintenance_order` schema uses `property_uuid` (VARCHAR) for access control. `fix_property_column()` and `inject_property_filter()` in `app/sqlcoder.py` ensure the filter is always present and uses the correct column.
 
 ### Display Type Logic (`app/display_hint.py`)
 
@@ -137,7 +136,7 @@ The model frequently hallucinates `WHERE property_name IN ('uuid')` instead of `
 
 ### Self-Correction Loop
 
-On Athena execution failure (`RuntimeError`), the pipeline automatically retries up to **2 times**: generates a correction prompt containing the failed SQL + Athena error message, re-runs model inference, re-validates, and retries. `correction_attempts` is reported in the response trace.
+On Redshift execution failure (`RuntimeError`), the pipeline automatically retries up to **2 times**: generates a correction prompt containing the failed SQL + Redshift error message, re-runs model inference, re-validates, and retries. `correction_attempts` is reported in the response trace.
 
 ### Static Web UI
 
@@ -158,14 +157,13 @@ On Athena execution failure (`RuntimeError`), the pipeline automatically retries
 
 ```json
 {
-  "text": "How many high severity incidents?",
+  "text": "How many open high priority maintenance orders?",
   "context": {
     "property_uuid": "uuid1,uuid2",
-    "user_uuid": "...",
     "language": "en"
   },
-  "sql": { "dialect": "athena", "tables": [] },
-  "execution": { "dry_run": false, "max_rows": 100, "athena_target": "peninsula_incident" },
+  "sql": { "dialect": "redshift", "tables": [] },
+  "execution": { "dry_run": false, "max_rows": 100, "redshift_target": "default" },
   "model": { "max_tokens": 256 },
   "display": { "type": "metric" },
   "trace": { "request_id": "optional-id", "source": "manual" }

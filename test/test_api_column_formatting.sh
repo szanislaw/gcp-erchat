@@ -20,7 +20,7 @@ curl -s -X POST http://localhost:8000/nlq/execute \
         "property_uuid": "",
         "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"
     },
-    "sql": {"dialect": "athena"},
+    "sql": {"dialect": "redshift"},
     "execution": {"dry_run": false}
   }' | python3 -c "import json, sys; d=json.load(sys.stdin); ex=d.get('execution',{}).get('data',{}); print('Columns:', ex.get('columns',[])); print('Row count:', ex.get('row_count',0))"
 
@@ -37,7 +37,7 @@ curl -s -X POST http://localhost:8000/nlq/execute \
         "property_uuid": "",
         "account_uuid": "fccb8d60-de9c-4bf8-abd8-fae523c732c6"
     },
-    "sql": {"dialect": "athena"},
+    "sql": {"dialect": "redshift"},
     "execution": {"dry_run": false}
   }' | python3 -c "import json, sys; d=json.load(sys.stdin); ex=d.get('execution',{}).get('data',{}); print('Columns:', ex.get('columns',[])); print('Row count:', ex.get('row_count',0))"
 

@@ -430,7 +430,7 @@ def call_api(question: str, max_retries: int = 5) -> dict:
     payload = {
         "text": question,
         "context": {"property_uuid": PROPERTY_UUID, "language": "en"},
-        "sql": {"dialect": "athena", "tables": []},
+        "sql": {"dialect": "redshift", "tables": []},
         "execution": {"dry_run": True, "max_rows": 100},
         "model": {"max_tokens": 256},
         "trace": {"source": "eval"},
