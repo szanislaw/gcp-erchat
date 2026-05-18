@@ -54,12 +54,13 @@ def get_display_type_from_question(question: str) -> Optional[str]:
 
     # BAR — categorical comparisons
     bar_patterns = [
-        r'count.*by (department|category|property|status|priority|location|type)',
-        r'\bby (department|status|priority|location)\b',
-        r'grouped by (department|status|priority|location)',
+        r'count.*by (department|category|severity|property|status|priority|location|type)',
+        r'\bby (department|status|priority|location|severity|category|property)\b',
+        r'grouped by (department|status|priority|location|severity|category)',
         r'per (department|location)\b',
-        r'which department',
-        r'top \d+.*(department|location|status|priority)',
+        r'which (department|category|severity)',
+        r'top \d+.*(department|location|status|priority|category|severity)',
+        r'(average|avg).*by (category|severity|department|status|location)',
     ]
     for pattern in bar_patterns:
         if re.search(pattern, q):
@@ -77,8 +78,10 @@ def get_display_type_from_question(question: str) -> Optional[str]:
     # TABLE — raw record listing
     table_patterns = [
         r'^show me (all|the)\b',
-        r'^show (recent|open|completed|cancelled|high|low|urgent)\b.*(order|maintenance)',
+        r'^show (recent|open|completed|cancelled|high|low|urgent)\b.*(order|maintenance|incident)',
         r'^show.*(order|maintenance).*(last \d+|last week|last month|recent|from the)',
+        r'^show (the )?(most recent|\d+) (recent )?(incident|order|maintenance)',
+        r'^show recent\b',
         r'most recent \d+',
         r'\bordered by\b',
         r'\blast \d+ days\b',
@@ -133,6 +136,70 @@ QUERY_DISPLAY_TYPE_MAP = {
     "show weekly maintenance order trend for this year": "line",
     "how many maintenance orders were created each day this month?": "line",
     "show trend of high priority orders by month": "line",
+
+    # === INCIDENT: METRIC — simple counts ===
+    "how many total incidents are there?": "metric",
+    "how many open incidents are there?": "metric",
+    "how many completed incidents?": "metric",
+    "how many cancelled incidents?": "metric",
+    "how many draft incidents are there?": "metric",
+    "how many high severity incidents?": "metric",
+    "how many critical severity incidents are there?": "metric",
+    "how many pending incidents?": "metric",
+
+    # === INCIDENT: METRIC — date-filtered counts ===
+    "how many incidents were created this month?": "metric",
+    "how many incidents were created this year?": "metric",
+    "how many incidents were created this week?": "metric",
+    "how many incidents were created last month?": "metric",
+    "how many incidents were created last week?": "metric",
+    "how many incidents were created in the last 30 days?": "metric",
+    "how many incidents were completed this month?": "metric",
+    "how many incidents were created in the last 7 days?": "metric",
+
+    # === INCIDENT: METRIC — combined filters ===
+    "how many high severity open incidents are there?": "metric",
+    "how many critical incidents are pending?": "metric",
+    "how many completed high severity incidents are there?": "metric",
+    "how many vip guest incidents are there?": "metric",
+    "how many high severity incidents were created this month?": "metric",
+    "how many open critical incidents are there?": "metric",
+
+    # === INCIDENT: METRIC — percentages & aggregates ===
+    "what percentage of incidents are completed?": "metric",
+    "what percentage of incidents are open?": "metric",
+    "what percentage of incidents are high or critical severity?": "metric",
+    "what percentage of incidents created this month are completed?": "metric",
+    "what is the average actual cost per incident?": "metric",
+    "what is the total actual cost of all incidents?": "metric",
+
+    # === INCIDENT: BAR — group-by breakdowns ===
+    "show incident count by status": "bar",
+    "show incident count by severity": "bar",
+    "show incident count by category": "bar",
+    "show incident count by department": "bar",
+    "which category has the most incidents?": "bar",
+    "which department has the most incidents?": "bar",
+    "show incident count by location": "bar",
+    "show top 5 incident categories": "bar",
+    "show average cost by category": "bar",
+    "show average cost by severity": "bar",
+    "show top 5 categories by average cost": "bar",
+
+    # === INCIDENT: LINE — time-series trends ===
+    "show the monthly incident trend": "line",
+    "show the weekly incident trend for this year": "line",
+    "show the daily incident trend this month": "line",
+    "show monthly trend of completed incidents": "line",
+    "show monthly incident count by severity": "line",
+    "show weekly trend of open incidents": "line",
+
+    # === INCIDENT: TABLE — listings ===
+    "show the 10 most recent incidents": "table",
+    "show the 5 most recent completed incidents": "table",
+    "show recent high severity incidents": "table",
+    "show recent incidents with their categories and status": "table",
+    "show the most recent vip guest incidents": "table",
 
     # === TABLE — raw record listings ===
     "what is the distribution of maintenance orders by status and priority?": "table",

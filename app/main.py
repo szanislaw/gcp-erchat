@@ -123,6 +123,16 @@ def read_root():
     return {"message": "NLQ → Redshift SQL API", "version": "0.4-refactored", "gui": "not available"}
 
 
+@app.get("/dashboard")
+def read_dashboard():
+    """Serve the GM dashboard"""
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+    dash_file = os.path.join(static_dir, "dashboard.html")
+    if os.path.exists(dash_file):
+        return FileResponse(dash_file)
+    return {"error": "dashboard not found"}
+
+
 @app.get("/health")
 def health_check():
     """Health check endpoint"""

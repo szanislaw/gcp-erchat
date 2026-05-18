@@ -1,5 +1,6 @@
 from app.schema_loader import load_schema, schema_to_ddl, load_column_values
 from app.query_normalizer import preprocess_query, get_time_expression_hint
+from app.display_hint import get_display_type_from_question
 from typing import Optional
 import logging
 
@@ -61,6 +62,25 @@ def _match_hotel_name(text: str, property_names: list) -> Optional[str]:
     return None
 
 
+def _build_chart_hint(display_type: Optional[str]) -> str:
+    if display_type == "bar":
+        return (
+            "\nCHART STRUCTURE (bar chart): Return exactly 2 columns — "
+            "a category label column and a numeric value column (COUNT/SUM/AVG). "
+            "ORDER BY the value column DESC so bars are sorted largest to smallest.\n"
+            "Example: SELECT category_name, COUNT(*) AS count FROM ... GROUP BY 1 ORDER BY 2 DESC LIMIT 100"
+        )
+    if display_type == "line":
+        return (
+            "\nCHART STRUCTURE (line chart): Return exactly 2 columns — "
+            "a time bucket column using DATE_TRUNC (x-axis) and a numeric value column (y-axis). "
+            "ORDER BY the time column ASC so the trend flows left to right.\n"
+            "Example: SELECT DATE_TRUNC('month', created_date) AS month, COUNT(*) AS count "
+            "FROM ... GROUP BY 1 ORDER BY 1 LIMIT 100"
+        )
+    return ""
+
+
 def _format_enum_section(column_values: dict) -> str:
     if not column_values:
         return ""
@@ -71,7 +91,7 @@ def _format_enum_section(column_values: dict) -> str:
     return "\n".join(lines)
 
 
-def _build_maintenance_instructions(property_restriction: str, entity_context: str, enum_hint: str) -> str:
+def _build_maintenance_instructions(property_restriction: str, entity_context: str, enum_hint: str, chart_hint: str = "") -> str:
     return f"""
 Use Amazon Redshift SQL syntax. Output ONLY the SQL query, no explanation.
 
@@ -168,10 +188,10 @@ RULES:
    Growth/comparison across periods: WITH prev AS (...), curr AS (...) SELECT ...
 8. Percentage: CAST(COUNT(CASE WHEN <cond> THEN 1 END) AS FLOAT) * 100.0 / NULLIF(COUNT(*), 0)
 9. "Recent" no time period: ORDER BY created_date DESC LIMIT N — no date filter
-10. NEVER use 'snapshotdate' — this column does not exist in this schema{property_restriction}{entity_context}{enum_hint}"""
+10. NEVER use 'snapshotdate' — this column does not exist in this schema{chart_hint}{property_restriction}{entity_context}{enum_hint}"""
 
 
-def _build_incident_instructions(property_restriction: str, entity_context: str, enum_hint: str) -> str:
+def _build_incident_instructions(property_restriction: str, entity_context: str, enum_hint: str, chart_hint: str = "") -> str:
     return f"""
 Use Amazon Redshift SQL syntax. Output ONLY the SQL query, no explanation.
 
@@ -269,7 +289,7 @@ RULES:
 7. Trend: GROUP BY DATE_TRUNC('month'/'week'/'day', created_date) ORDER BY 1
 8. Percentage: CAST(COUNT(CASE WHEN <cond> THEN 1 END) AS FLOAT) * 100.0 / NULLIF(COUNT(*), 0)
 9. "Recent" no time period: ORDER BY created_date DESC LIMIT N — no date filter
-10. NEVER use 'snapshotdate' — use created_date instead{property_restriction}{entity_context}{enum_hint}"""
+10. NEVER use 'snapshotdate' — use created_date instead{chart_hint}{property_restriction}{entity_context}{enum_hint}"""
 
 
 def _build_common_parts(
@@ -325,10 +345,15 @@ def _build_common_parts(
     )
     enum_hint = f"\n{enum_section}" if enum_section else ""
 
+    detected_display = get_display_type_from_question(text)
+    chart_hint = _build_chart_hint(detected_display)
+    if chart_hint:
+        logger.info(f"Injecting chart hint for display type: {detected_display}")
+
     if redshift_target == "incident":
-        additional_instructions = _build_incident_instructions(property_restriction, entity_context, enum_hint)
+        additional_instructions = _build_incident_instructions(property_restriction, entity_context, enum_hint, chart_hint)
     else:
-        additional_instructions = _build_maintenance_instructions(property_restriction, entity_context, enum_hint)
+        additional_instructions = _build_maintenance_instructions(property_restriction, entity_context, enum_hint, chart_hint)
 
     return normalized_text, ddl_schema, additional_instructions
 

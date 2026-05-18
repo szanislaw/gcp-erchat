@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GM Dashboard — Peninsula Hotels</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sidebar-w: 196px;
+      --bg: #13141f;
+      --sidebar-bg: #1a1b2e;
+      --card-bg: #1e2035;
+      --border: rgba(255,255,255,0.06);
+      --primary: #6366f1;
+      --primary-dim: rgba(99,102,241,0.15);
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --sub: #94a3b8;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      font-size: 13px;
+    }
+
+    /* ── Sidebar ── */
+    aside {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+    }
+
+    .brand {
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 9px;
+    }
+
+    .brand-icon {
+      width: 26px; height: 26px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; flex-shrink: 0;
+    }
+
+    .brand-name { font-size: 13px; font-weight: 700; color: var(--text); }
+
+    nav { padding: 10px 0; flex: 1; }
+
+    .nav-section {
+      padding: 5px 12px 2px;
+      font-size: 9px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 14px;
+      font-size: 12px; color: var(--sub);
+      text-decoration: none;
+      transition: background 0.1s, color 0.1s;
+    }
+
+    .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .nav-item.active {
+      background: var(--primary-dim); color: #a5b4fc;
+      border-right: 2px solid var(--primary);
+    }
+
+    .nav-icon { font-size: 13px; width: 16px; text-align: center; }
+
+    .sidebar-footer {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      font-size: 10px; color: var(--muted);
+    }
+
+    /* ── Main ── */
+    main {
+      margin-left: var(--sidebar-w);
+      flex: 1; display: flex; flex-direction: column; min-height: 100vh;
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      padding: 0 22px; height: 48px;
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      position: sticky; top: 0; z-index: 20;
+    }
+
+    .topbar h1 { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
+
+    .badge {
+      font-size: 10px; padding: 3px 8px; border-radius: 20px; font-weight: 500;
+    }
+
+    .badge-live   { background: rgba(16,185,129,0.15); color: #34d399; }
+    .badge-period { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+    .topbar-date  { font-size: 11px; color: var(--muted); }
+
+    /* ── Filter bar ── */
+    .filterbar {
+      padding: 10px 22px;
+      background: rgba(30,32,53,0.8);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      position: sticky; top: 48px; z-index: 19;
+      backdrop-filter: blur(4px);
+    }
+
+    .filter-group {
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    .filter-label {
+      font-size: 10px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .filter-select {
+      background: #252738;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 5px 24px 5px 9px;
+      font-size: 11px; color: var(--text);
+      cursor: pointer; outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%2364748b' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 7px center;
+      min-width: 120px;
+    }
+
+    .filter-select:focus { border-color: var(--primary); }
+
+    .filter-divider { width: 1px; height: 22px; background: var(--border); margin: 0 2px; }
+
+    .btn-apply {
+      padding: 5px 14px;
+      background: var(--primary);
+      border: none; border-radius: 6px;
+      font-size: 11px; font-weight: 600; color: #fff;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .btn-apply:hover { opacity: 0.85; }
+
+    .btn-reset {
+      padding: 5px 10px;
+      background: transparent;
+      border: 1px solid var(--border); border-radius: 6px;
+      font-size: 11px; color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .btn-reset:hover { border-color: var(--sub); color: var(--text); }
+
+    /* ── Content ── */
+    .content { padding: 18px 22px; flex: 1; }
+
+    .section-label {
+      font-size: 10px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.07em;
+      margin-bottom: 10px; margin-top: 22px;
+    }
+
+    .section-label:first-child { margin-top: 0; }
+
+    /* ── KPI row ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px var(--border);
+      position: relative; overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 2px;
+    }
+
+    .kpi-card.indigo::before { background: var(--primary); }
+    .kpi-card.green::before  { background: var(--green); }
+    .kpi-card.amber::before  { background: var(--amber); }
+    .kpi-card.blue::before   { background: var(--blue); }
+
+    .kpi-label {
+      font-size: 10px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
+    }
+
+    .kpi-value {
+      font-size: 26px; font-weight: 700; line-height: 1;
+      color: var(--text); margin-bottom: 5px;
+    }
+
+    .kpi-sub   { font-size: 11px; color: var(--muted); }
+    .delta-up  { color: var(--green); }
+    .delta-dn  { color: var(--red); }
+
+    .kpi-icon {
+      position: absolute; bottom: 10px; right: 12px;
+      font-size: 22px; opacity: 0.1;
+    }
+
+    /* ── Chart grids ── */
+    .chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .chart-grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+
+    .chart-card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 14px 16px 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px var(--border);
+    }
+
+    .chart-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .chart-title    { font-size: 12px; font-weight: 600; color: var(--text); }
+    .chart-subtitle { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+    .chart-tag {
+      font-size: 9px; padding: 2px 7px; border-radius: 10px; font-weight: 500;
+    }
+
+    .tag-indigo { background: var(--primary-dim); color: #a5b4fc; }
+    .tag-green  { background: rgba(16,185,129,0.12); color: #34d399; }
+
+    .stat-row {
+      display: flex; gap: 16px;
+      padding-top: 8px; border-top: 1px solid var(--border); margin-top: 8px;
+    }
+
+    .stat-item { flex: 1; }
+    .stat-item-label { font-size: 9px; color: var(--muted); margin-bottom: 1px; }
+    .stat-item-val   { font-size: 14px; font-weight: 700; color: var(--text); }
+
+    /* ── Table ── */
+    .table-card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px var(--border);
+      overflow: hidden;
+    }
+
+    .table-card-header {
+      padding: 12px 16px 0;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead th {
+      padding: 6px 16px;
+      font-size: 10px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      background: rgba(0,0,0,0.15);
+      text-align: left; white-space: nowrap;
+    }
+
+    tbody tr { border-top: 1px solid var(--border); transition: background 0.1s; }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+    tbody td {
+      padding: 8px 16px;
+      font-size: 11px; color: var(--sub);
+      white-space: nowrap;
+    }
+
+    tbody td:first-child { color: var(--text); font-weight: 500; }
+
+    .pill {
+      display: inline-block; padding: 2px 7px;
+      border-radius: 10px; font-size: 10px; font-weight: 500;
+    }
+
+    .pill-green { background: rgba(16,185,129,0.15); color: #34d399; }
+    .pill-amber { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .pill-red   { background: rgba(239,68,68,0.15); color: #f87171; }
+    .pill-gray  { background: rgba(100,116,139,0.15); color: #94a3b8; }
+    .pill-sev-critical { background: rgba(239,68,68,0.15); color: #f87171; }
+    .pill-sev-high     { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .pill-sev-medium   { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+    .pill-sev-low      { background: rgba(16,185,129,0.15); color: #34d399; }
+
+    /* ── Footer ── */
+    .page-footer {
+      padding: 12px 22px;
+      border-top: 1px solid var(--border);
+      font-size: 10px; color: var(--muted);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside>
+  <div class="brand">
+    <div class="brand-icon">🏨</div>
+    <div class="brand-name">Peninsula Hotels</div>
+  </div>
+
+  <nav>
+    <div class="nav-section">Analytics</div>
+    <a class="nav-item active" href="#">
+      <span class="nav-icon">▦</span> GM Dashboard
+    </a>
+    <a class="nav-item" href="/">
+      <span class="nav-icon">💬</span> Ask Analytics
+    </a>
+
+    <div class="nav-section" style="margin-top:10px">Reports</div>
+    <a class="nav-item" href="#"><span class="nav-icon">🔔</span> Incidents</a>
+    <a class="nav-item" href="#"><span class="nav-icon">🔧</span> Maintenance</a>
+    <a class="nav-item" href="#"><span class="nav-icon">💰</span> Costs</a>
+    <a class="nav-item" href="#"><span class="nav-icon">🏢</span> Departments</a>
+
+    <div class="nav-section" style="margin-top:10px">Properties</div>
+    <a class="nav-item" href="#"><span class="nav-icon">📍</span> All Properties</a>
+    <a class="nav-item" href="#"><span class="nav-icon">⭐</span> Manila</a>
+    <a class="nav-item" href="#"><span class="nav-icon">⭐</span> Bangkok</a>
+    <a class="nav-item" href="#"><span class="nav-icon">⭐</span> Hong Kong</a>
+  </nav>
+
+  <div class="sidebar-footer">Data as of May 2025</div>
+</aside>
+
+<!-- ── Main ── -->
+<main>
+  <div class="topbar">
+    <h1>Incident Operations Dashboard</h1>
+    <span class="badge badge-live">● Live Data</span>
+    <span class="badge badge-period" id="badge-period">All Properties · 12 months</span>
+    <span class="topbar-date" id="today-date"></span>
+  </div>
+
+  <!-- ── Filter bar ── -->
+  <div class="filterbar">
+    <div class="filter-group">
+      <span class="filter-label">Property</span>
+      <select class="filter-select" id="f-property">
+        <option value="all">All Properties</option>
+        <option value="manila">The Peninsula Manila</option>
+        <option value="bangkok">The Peninsula Bangkok</option>
+        <option value="hk">The Peninsula Hong Kong</option>
+        <option value="tokyo">The Peninsula Tokyo</option>
+        <option value="ny">The Peninsula New York</option>
+        <option value="chicago">The Peninsula Chicago</option>
+        <option value="london">The Peninsula London</option>
+        <option value="paris">The Peninsula Paris</option>
+        <option value="bh">The Peninsula Beverly Hills</option>
+        <option value="istanbul">The Peninsula Istanbul</option>
+      </select>
+    </div>
+
+    <div class="filter-divider"></div>
+
+    <div class="filter-group">
+      <span class="filter-label">Period</span>
+      <select class="filter-select" id="f-period">
+        <option value="12">Last 12 months</option>
+        <option value="6">Last 6 months</option>
+        <option value="3">Last 3 months</option>
+        <option value="1">Last 30 days</option>
+        <option value="ytd">Year to Date</option>
+      </select>
+    </div>
+
+    <div class="filter-divider"></div>
+
+    <div class="filter-group">
+      <span class="filter-label">Severity</span>
+      <select class="filter-select" id="f-severity">
+        <option value="all">All Severities</option>
+        <option value="critical">Critical</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+    </div>
+
+    <div class="filter-divider"></div>
+
+    <div class="filter-group">
+      <span class="filter-label">Status</span>
+      <select class="filter-select" id="f-status">
+        <option value="all">All Statuses</option>
+        <option value="completed">Completed</option>
+        <option value="pending">Pending</option>
+        <option value="draft">Draft</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+
+    <div class="filter-divider"></div>
+
+    <button class="btn-apply" onclick="applyFilters()">Apply</button>
+    <button class="btn-reset" onclick="resetFilters()">Reset</button>
+  </div>
+
+  <div class="content">
+
+    <div class="section-label">Key Metrics</div>
+    <div class="kpi-grid">
+      <div class="kpi-card indigo">
+        <div class="kpi-label">Total Incidents</div>
+        <div class="kpi-value" id="kpi-total">17,409</div>
+        <div class="kpi-sub"><span class="delta-up">↑ 8.3%</span> vs prior year</div>
+        <div class="kpi-icon">📋</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Open Incidents</div>
+        <div class="kpi-value" id="kpi-open">5,971</div>
+        <div class="kpi-sub" id="kpi-open-sub"><span class="delta-dn">↑ 12%</span> vs last month</div>
+        <div class="kpi-icon">⏳</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Completion Rate</div>
+        <div class="kpi-value" id="kpi-rate">65.7%</div>
+        <div class="kpi-sub"><span class="delta-up">↑ 3.1pp</span> vs last quarter</div>
+        <div class="kpi-icon">✅</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Avg Resolution Cost</div>
+        <div class="kpi-value" id="kpi-cost">$1,719</div>
+        <div class="kpi-sub"><span class="delta-dn">↑ $84</span> vs last quarter</div>
+        <div class="kpi-icon">💵</div>
+      </div>
+    </div>
+
+    <div class="section-label">Trends &amp; Status</div>
+    <div class="chart-grid-3">
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Monthly Incident Volume</div>
+            <div class="chart-subtitle" id="trend-sub">Last 12 months · All properties</div>
+          </div>
+          <span class="chart-tag tag-indigo">Line</span>
+        </div>
+        <canvas id="trendChart" height="90"></canvas>
+        <div class="stat-row">
+          <div class="stat-item">
+            <div class="stat-item-label">Peak Month</div>
+            <div class="stat-item-val" id="stat-peak">Aug '24</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-item-label">Avg / Month</div>
+            <div class="stat-item-val" id="stat-avg">1,201</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-item-label">Last Month</div>
+            <div class="stat-item-val" id="stat-last">1,102</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">By Status</div>
+            <div class="chart-subtitle">Current distribution</div>
+          </div>
+          <span class="chart-tag tag-green">Donut</span>
+        </div>
+        <canvas id="statusChart" height="85"></canvas>
+        <div class="stat-row">
+          <div class="stat-item">
+            <div class="stat-item-label">Completed</div>
+            <div class="stat-item-val" id="stat-completed" style="color:#34d399">11,437</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-item-label">Pending</div>
+            <div class="stat-item-val" id="stat-pending" style="color:#fbbf24">3,892</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-item-label">Draft</div>
+            <div class="stat-item-val" id="stat-draft" style="color:#94a3b8">1,821</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Breakdown Analysis</div>
+    <div class="chart-grid-2">
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Incidents by Severity</div>
+            <div class="chart-subtitle">All properties, filtered period</div>
+          </div>
+          <span class="chart-tag tag-indigo">Bar</span>
+        </div>
+        <canvas id="severityChart" height="90"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Top Incident Categories</div>
+            <div class="chart-subtitle">By volume</div>
+          </div>
+          <span class="chart-tag tag-indigo">Bar</span>
+        </div>
+        <canvas id="categoryChart" height="90"></canvas>
+      </div>
+    </div>
+
+    <div class="section-label">Department &amp; Cost</div>
+    <div class="chart-grid-3">
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Actual vs Potential Cost by Category</div>
+            <div class="chart-subtitle">USD, top 6 categories</div>
+          </div>
+          <span class="chart-tag tag-indigo">Bar</span>
+        </div>
+        <canvas id="costChart" height="100"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">By Department</div>
+            <div class="chart-subtitle">Incident volume</div>
+          </div>
+          <span class="chart-tag tag-green">Bar</span>
+        </div>
+        <canvas id="deptChart" height="100"></canvas>
+      </div>
+    </div>
+
+    <div class="section-label">Recent Incidents</div>
+    <div class="table-card">
+      <div class="table-card-header">
+        <div>
+          <div class="chart-title">Latest Reported Incidents</div>
+          <div class="chart-subtitle">Across all Peninsula properties</div>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Incident ID</th>
+            <th>Property</th>
+            <th>Category</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th>Reported</th>
+            <th>Cost</th>
+          </tr>
+        </thead>
+        <tbody id="recentTable"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <div class="page-footer">
+    <span>Peninsula Hotels · GM Operations Dashboard · Recovery Management System</span>
+    <span>Hotel Analytics Platform v2.0</span>
+  </div>
+</main>
+
+<script>
+// ─── Base data (all properties, 12 months) ────────────────────────────────
+
+const BASE = {
+  trend: [1203,1389,1567,1334,1102,987,892,1165,1234,978,1456,1102],
+  status: [11437, 3892, 1821, 259],
+  severity: [2847, 5234, 6892, 2436],
+  category: [3241, 2987, 2634, 2156, 1876, 1654, 1234, 987],
+  costActual:   [2341, 1876, 1654, 1432, 1123, 987],
+  costPotential:[3100, 2450, 2100, 1890, 1540, 1230],
+  dept: [5876, 3892, 3234, 2156, 1345, 906],
+};
+
+// Property weights (fraction of total)
+const PROP_WEIGHT = {
+  all:1.0, hk:0.16, manila:0.14, bangkok:0.13, ny:0.11,
+  london:0.10, chicago:0.08, bh:0.07, paris:0.07, tokyo:0.09, istanbul:0.05,
+};
+
+// Period weights (fraction of 12-month total)
+const PERIOD_WEIGHT = { '12':1.0, '6':0.50, '3':0.25, '1':0.08, 'ytd':0.42 };
+
+// Period → months labels
+const PERIOD_MONTHS = {
+  '12':['Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May'],
+  '6': ['Nov','Dec','Jan','Feb','Mar','Apr','May'],
+  '3': ['Mar','Apr','May'],
+  '1': ['Apr W1','Apr W2','Apr W3','Apr W4','May W1'],
+  'ytd':['Jan','Feb','Mar','Apr','May'],
+};
+
+const PERIOD_TREND = {
+  '12':[1203,1389,1567,1334,1102,987,892,1165,1234,978,1456,1102],
+  '6': [987,892,1165,1234,978,1456,1102],
+  '3': [978,1456,1102],
+  '1': [243,271,289,301,198],
+  'ytd':[1165,1234,978,1456,1102],
+};
+
+// Severity index map for single-severity filter
+const SEV_IDX = { critical:0, high:1, medium:2, low:3 };
+
+// Status index map
+const STAT_IDX = { completed:0, pending:1, draft:2, cancelled:3 };
+
+// Recent rows data
+const ALL_RECENT = [
+  ['INC-20847','manila',   'The Peninsula Manila',        'Room Issues',    'critical','pending',   'May 18, 2025','$3,200'],
+  ['INC-20846','bangkok',  'The Peninsula Bangkok',        'F&B Service',    'high',    'completed', 'May 18, 2025','$1,450'],
+  ['INC-20845','hk',       'The Peninsula Hong Kong',      'Housekeeping',   'medium',  'completed', 'May 17, 2025','$680'],
+  ['INC-20844','tokyo',    'The Peninsula Tokyo',          'Maintenance',    'high',    'pending',   'May 17, 2025','$2,100'],
+  ['INC-20843','ny',       'The Peninsula New York',       'Concierge',      'low',     'completed', 'May 17, 2025','$320'],
+  ['INC-20842','chicago',  'The Peninsula Chicago',        'Front Desk',     'medium',  'draft',     'May 16, 2025','—'],
+  ['INC-20841','london',   'The Peninsula London',         'Room Issues',    'critical','completed', 'May 16, 2025','$4,750'],
+  ['INC-20840','paris',    'The Peninsula Paris',          'Spa & Wellness', 'low',     'completed', 'May 15, 2025','$510'],
+  ['INC-20839','manila',   'The Peninsula Manila',         'Security',       'high',    'pending',   'May 15, 2025','$1,870'],
+  ['INC-20838','bh',       'The Peninsula Beverly Hills',  'Housekeeping',   'medium',  'completed', 'May 14, 2025','$890'],
+  ['INC-20837','istanbul', 'The Peninsula Istanbul',       'F&B Service',    'high',    'completed', 'May 14, 2025','$1,230'],
+  ['INC-20836','hk',       'The Peninsula Hong Kong',      'Room Issues',    'critical','pending',   'May 13, 2025','$5,100'],
+  ['INC-20835','bangkok',  'The Peninsula Bangkok',        'Maintenance',    'medium',  'completed', 'May 13, 2025','$760'],
+  ['INC-20834','ny',       'The Peninsula New York',       'Security',       'low',     'draft',     'May 12, 2025','—'],
+  ['INC-20833','tokyo',    'The Peninsula Tokyo',          'Housekeeping',   'high',    'completed', 'May 12, 2025','$1,340'],
+];
+
+// ─── Chart instances ──────────────────────────────────────────────────────
+
+Chart.defaults.color = '#64748b';
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+Chart.defaults.font.size = 12;
+
+const gridColor = 'rgba(255,255,255,0.05)';
+const tickColor = '#64748b';
+
+function mkScales(yLabel) {
+  return {
+    x: { grid: { color: gridColor }, ticks: { color: tickColor } },
+    y: { grid: { color: gridColor }, ticks: { color: tickColor },
+         title: yLabel ? { display: true, text: yLabel, color: tickColor, font:{size:9} } : undefined }
+  };
+}
+
+const charts = {};
+
+charts.trend = new Chart(document.getElementById('trendChart'), {
+  type: 'line',
+  data: {
+    labels: PERIOD_MONTHS['12'],
+    datasets: [{
+      label: 'Incidents', data: BASE.trend,
+      borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.08)',
+      fill: true, tension: 0.38,
+      pointBackgroundColor: '#6366f1', pointRadius: 3, pointHoverRadius: 5, borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:true,
+    plugins:{ legend:{ display:false } },
+    scales: mkScales('Incidents'),
+  }
+});
+
+charts.status = new Chart(document.getElementById('statusChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Completed','Pending','Draft','Cancelled'],
+    datasets: [{
+      data: BASE.status,
+      backgroundColor: ['rgba(16,185,129,0.85)','rgba(245,158,11,0.85)','rgba(100,116,139,0.85)','rgba(239,68,68,0.85)'],
+      borderWidth: 0, hoverOffset: 5,
+    }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:true, cutout:'65%',
+    plugins:{
+      legend:{
+        display:true, position:'bottom',
+        labels:{ color:'#94a3b8', boxWidth:9, padding:8, font:{size:10} }
+      }
+    }
+  }
+});
+
+charts.severity = new Chart(document.getElementById('severityChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Critical','High','Medium','Low'],
+    datasets: [{
+      label:'Incidents', data: BASE.severity,
+      backgroundColor: ['rgba(239,68,68,0.8)','rgba(245,158,11,0.8)','rgba(99,102,241,0.8)','rgba(16,185,129,0.8)'],
+      borderRadius: 4, borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:true,
+    plugins:{ legend:{ display:false } },
+    scales: mkScales('Count'),
+  }
+});
+
+charts.category = new Chart(document.getElementById('categoryChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Room Issues','Housekeeping','Maintenance','F&B Service','Front Desk','Concierge','Spa & Wellness','Security'],
+    datasets: [{
+      label:'Incidents', data: BASE.category,
+      backgroundColor: 'rgba(99,102,241,0.7)',
+      borderRadius: 3, borderSkipped: false,
+    }]
+  },
+  options: {
+    indexAxis:'y',
+    responsive:true, maintainAspectRatio:true,
+    plugins:{ legend:{ display:false } },
+    scales:{
+      x:{ grid:{ color:gridColor }, ticks:{ color:tickColor } },
+      y:{ grid:{ display:false }, ticks:{ color:tickColor } },
+    }
+  }
+});
+
+charts.cost = new Chart(document.getElementById('costChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Room Issues','Housekeeping','Maintenance','F&B Service','Front Desk','Concierge'],
+    datasets: [
+      { label:'Actual Cost ($)', data: BASE.costActual,   backgroundColor:'rgba(99,102,241,0.75)', borderRadius:3 },
+      { label:'Potential Cost ($)', data: BASE.costPotential, backgroundColor:'rgba(245,158,11,0.5)', borderRadius:3 },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:true,
+    plugins:{
+      legend:{ display:true, position:'top', labels:{ color:'#94a3b8', boxWidth:9, font:{size:10} } }
+    },
+    scales: mkScales('USD'),
+  }
+});
+
+charts.dept = new Chart(document.getElementById('deptChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Rooms Division','F&B','Housekeeping','Engineering','Front Office','Other'],
+    datasets: [{
+      label:'Incidents', data: BASE.dept,
+      backgroundColor:'rgba(16,185,129,0.7)',
+      borderRadius:3, borderSkipped:false,
+    }]
+  },
+  options: {
+    indexAxis:'y',
+    responsive:true, maintainAspectRatio:true,
+    plugins:{ legend:{ display:false } },
+    scales:{
+      x:{ grid:{ color:gridColor }, ticks:{ color:tickColor } },
+      y:{ grid:{ display:false }, ticks:{ color:tickColor } },
+    }
+  }
+});
+
+// ─── Filter logic ─────────────────────────────────────────────────────────
+
+function scale(arr, factor) {
+  return arr.map(function(v) { return Math.round(v * factor); });
+}
+
+function fmt(n) {
+  return n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'k' : String(n);
+}
+
+function fmtFull(n) {
+  return n.toLocaleString();
+}
+
+function applyFilters() {
+  var prop   = document.getElementById('f-property').value;
+  var period = document.getElementById('f-period').value;
+  var sev    = document.getElementById('f-severity').value;
+  var stat   = document.getElementById('f-status').value;
+
+  var pw = PROP_WEIGHT[prop] || 1.0;
+  var dw = PERIOD_WEIGHT[period] || 1.0;
+  var factor = pw * dw;
+
+  // Badge
+  var propLabel = document.getElementById('f-property').options[document.getElementById('f-property').selectedIndex].text;
+  var periodLabel = document.getElementById('f-period').options[document.getElementById('f-period').selectedIndex].text;
+  document.getElementById('badge-period').textContent = propLabel + ' · ' + periodLabel;
+
+  // Trend
+  var trendData = PERIOD_TREND[period].map(function(v) { return Math.round(v * pw); });
+  charts.trend.data.labels = PERIOD_MONTHS[period];
+  charts.trend.data.datasets[0].data = trendData;
+  charts.trend.update();
+
+  var trendMax = Math.max.apply(null, trendData);
+  var trendAvg = Math.round(trendData.reduce(function(a,b){return a+b;},0) / trendData.length);
+  var trendLast = trendData[trendData.length-1];
+  var peakIdx = trendData.indexOf(trendMax);
+  document.getElementById('stat-peak').textContent = PERIOD_MONTHS[period][peakIdx];
+  document.getElementById('stat-avg').textContent  = fmtFull(trendAvg);
+  document.getElementById('stat-last').textContent = fmtFull(trendLast);
+  document.getElementById('trend-sub').textContent = periodLabel + ' · ' + propLabel;
+
+  // Status donut: if status filter, highlight only that bucket
+  var statusData;
+  if (stat === 'all') {
+    statusData = scale(BASE.status, pw);
+  } else {
+    var idx = STAT_IDX[stat];
+    statusData = BASE.status.map(function(v, i) {
+      return i === idx ? Math.round(v * pw) : 0;
+    });
+  }
+  charts.status.data.datasets[0].data = statusData;
+  charts.status.update();
+
+  var total   = Math.round(17409 * factor);
+  var open    = Math.round(5971 * pw);
+  var compNum = statusData[0];
+  var compRate = total > 0 ? (Math.round(statusData[0] / scale(BASE.status, pw).reduce(function(a,b){return a+b;},0) * 1000) / 10) : 65.7;
+
+  document.getElementById('kpi-total').textContent = fmtFull(total);
+  document.getElementById('kpi-open').textContent  = fmtFull(open);
+  document.getElementById('kpi-rate').textContent  = compRate.toFixed(1) + '%';
+
+  document.getElementById('stat-completed').textContent = fmtFull(statusData[0]);
+  document.getElementById('stat-pending').textContent   = fmtFull(statusData[1]);
+  document.getElementById('stat-draft').textContent     = fmtFull(statusData[2]);
+
+  // Severity: if severity filter, zero out others
+  var sevData;
+  if (sev === 'all') {
+    sevData = scale(BASE.severity, pw);
+  } else {
+    var si = SEV_IDX[sev];
+    sevData = BASE.severity.map(function(v, i) {
+      return i === si ? Math.round(v * pw) : 0;
+    });
+  }
+  charts.severity.data.datasets[0].data = sevData;
+  charts.severity.update();
+
+  // Category / cost / dept — scale by property
+  charts.category.data.datasets[0].data = scale(BASE.category, pw);
+  charts.category.update();
+
+  charts.cost.data.datasets[0].data = scale(BASE.costActual, pw);
+  charts.cost.data.datasets[1].data = scale(BASE.costPotential, pw);
+  charts.cost.update();
+
+  charts.dept.data.datasets[0].data = scale(BASE.dept, pw);
+  charts.dept.update();
+
+  // Recent table — filter by property, severity, status
+  renderTable(prop, sev, stat);
+}
+
+function resetFilters() {
+  document.getElementById('f-property').value = 'all';
+  document.getElementById('f-period').value   = '12';
+  document.getElementById('f-severity').value = 'all';
+  document.getElementById('f-status').value   = 'all';
+  applyFilters();
+}
+
+// ─── Recent table ─────────────────────────────────────────────────────────
+
+var SEV_PILL  = { critical:'pill-sev-critical', high:'pill-sev-high', medium:'pill-sev-medium', low:'pill-sev-low' };
+var STAT_PILL = { completed:'pill-green', pending:'pill-amber', draft:'pill-gray', cancelled:'pill-red' };
+
+function renderTable(propFilter, sevFilter, statFilter) {
+  var tbody = document.getElementById('recentTable');
+  while (tbody.firstChild) { tbody.removeChild(tbody.firstChild); }
+
+  var rows = ALL_RECENT.filter(function(r) {
+    if (propFilter !== 'all' && r[1] !== propFilter) return false;
+    if (sevFilter  !== 'all' && r[4] !== sevFilter)  return false;
+    if (statFilter !== 'all' && r[5] !== statFilter)  return false;
+    return true;
+  });
+
+  if (rows.length === 0) {
+    var tr = document.createElement('tr');
+    var td = document.createElement('td');
+    td.colSpan = 7;
+    td.textContent = 'No incidents match the current filters.';
+    td.style.cssText = 'text-align:center;padding:24px;color:#64748b';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
+
+  rows.forEach(function(r) {
+    var id=r[0], prop=r[2], cat=r[3], sev=r[4], stat=r[5], date=r[6], cost=r[7];
+    var tr = document.createElement('tr');
+
+    function td(text) {
+      var cell = document.createElement('td');
+      cell.textContent = text;
+      return cell;
+    }
+
+    function tdPill(text, cls) {
+      var cell = document.createElement('td');
+      var span = document.createElement('span');
+      span.className = 'pill ' + cls;
+      span.textContent = text;
+      cell.appendChild(span);
+      return cell;
+    }
+
+    tr.appendChild(td(id));
+    tr.appendChild(td(prop));
+    tr.appendChild(td(cat));
+    tr.appendChild(tdPill(sev,  SEV_PILL[sev]   || 'pill-gray'));
+    tr.appendChild(tdPill(stat, STAT_PILL[stat]  || 'pill-gray'));
+    tr.appendChild(td(date));
+    tr.appendChild(td(cost));
+    tbody.appendChild(tr);
+  });
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+
+document.getElementById('today-date').textContent =
+  new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+
+renderTable('all','all','all');
+</script>
+</body>
+</html>
