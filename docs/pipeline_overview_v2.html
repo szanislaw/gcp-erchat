@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NLQ → Redshift SQL — Pipeline Overview</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+      font-size: 14px;
+      line-height: 1.5;
+      color: #1f2328;
+      background-color: #ffffff;
+      margin: 0;
+      padding: 24px;
+    }
+    .markdown-body {
+      max-width: 1012px;
+      margin: 0 auto;
+      padding: 45px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+    }
+    @media (max-width: 767px) {
+      body { padding: 12px; }
+      .markdown-body { padding: 16px; border: none; }
+    }
+    
+    /* GitHub Heading Typography */
+    h1 { font-size: 2em; font-weight: 600; padding-bottom: 0.3em; border-bottom: 1px solid #d8deb4; margin-top: 0; margin-bottom: 16px; }
+    h2 { font-size: 1.5em; font-weight: 600; padding-bottom: 0.3em; border-bottom: 1px solid #hsla(210,18%,87%,1); margin-top: 24px; margin-bottom: 16px; border-bottom: 1px solid #d0d7de; }
+    h3 { font-size: 1.25em; font-weight: 600; margin-top: 24px; margin-bottom: 16px; }
+    h4 { font-size: 1em; font-weight: 600; margin-top: 24px; margin-bottom: 16px; }
+    p { margin-top: 0; margin-bottom: 16px; color: #24292f; }
+    
+    /* Code styling */
+    code {
+      padding: 0.2em 0.4em;
+      margin: 0;
+      font-size: 85%;
+      white-space: break-spaces;
+      background-color: rgba(175,184,193,0.2);
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+    }
+    pre {
+      padding: 16px;
+      overflow: auto;
+      font-size: 85%;
+      line-height: 1.45;
+      color: #1f2328;
+      background-color: #f6f8fa;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+    pre code {
+      padding: 0;
+      margin: 0;
+      font-size: 100%;
+      word-break: normal;
+      white-space: pre;
+      background-color: transparent;
+      border: 0;
+    }
+    
+    /* Badges & Links */
+    a { color: #0969da; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 18px;
+      white-space: nowrap;
+      border-radius: 2em;
+      border: 1px solid transparent;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+    .badge-indigo { background-color: #ddf4ff; color: #0969da; border-color: #54aeff; }
+    .badge-purple { background-color: #fbefff; color: #8250df; border-color: #c297ff; }
+    .badge-cyan { background-color: #e6fffa; color: #0366d6; border-color: #79d2c4; }
+    .badge-green { background-color: #dafbe1; color: #1a7f37; border-color: #4ac26b; }
+    
+    /* Pipeline Step Box Layout */
+    .pipeline-container { margin: 24px 0; }
+    .step-box {
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      background-color: #ffffff;
+    }
+    .step-header {
+      padding: 12px 16px;
+      background-color: #f6f8fa;
+      border-bottom: 1px solid #d0d7de;
+      border-top-left-radius: 5px;
+      border-top-right-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .step-title-area { display: flex; align-items: center; gap: 8px; }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #24292f;
+      color: #ffffff;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-weight: 600;
+      font-size: 12px;
+    }
+    .step-title { font-weight: 600; font-size: 14px; color: #1f2328; }
+    .step-module { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; color: #57606a; }
+    .step-body { padding: 16px; }
+    
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin-top: 0; margin-bottom: 16px; }
+    th, td { padding: 6px 13px; border: 1px solid #d0d7de; }
+    tr { background-color: #ffffff; border-top: 1px solid #d0d7de; }
+    tr:nth-child(2n) { background-color: #f6f8fa; }
+    th { font-weight: 600; background-color: #f6f8fa; }
+    
+    /* Navigation bar mimicking GitHub top repository bar or sub-nav */
+    .repo-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid #d0d7de;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .repo-title { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .repo-nav { display: flex; gap: 8px; }
+    .nav-btn {
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 20px;
+      color: #24292f;
+      background-color: #f6f8fa;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .nav-btn:hover { background-color: #f3f4f6; text-decoration: none; }
+    .nav-btn.active { background-color: #ffffff; border-bottom-color: transparent; border-radius: 6px 6px 0 0; position: relative; top: 1px; font-weight: 600; }
+    
+    /* Grid for domains/cards */
+    .github-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 768px) { .github-grid { grid-template-columns: 1fr; } }
+    .box-card {
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      padding: 16px;
+      background-color: #ffffff;
+    }
+    .box-card-title { font-weight: 600; font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    
+    /* Simple Flow Graphic inside white card box */
+    .diagram-box {
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      padding: 16px;
+      background-color: #f6f8fa;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 12px;
+      white-space: pre;
+      color: #24292f;
+      line-height: 1.4;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="markdown-body">
+  <!-- GitHub-style Header Navigation -->
+  <div class="repo-header">
+    <div class="repo-title">
+      <span>📁</span>
+      <a href="#">NLQ-Analytics-API</a>
+      <span>/</span>
+      <strong>pipeline_overview.html</strong>
+    </div>
+    <div class="repo-nav">
+      <a class="nav-btn" href="technical_pipeline.html">View Technical Docs →</a>
+    </div>
+  </div>
+
+  <h1>Ask Questions. Get Data.</h1>
+  <p>A production API that converts plain English questions about hotel operations into Amazon Redshift SQL queries — automatically.</p>
+  
+  <div style="margin-bottom: 24px;">
+    <span class="badge badge-indigo">Natural Language → SQL</span>
+    <span class="badge badge-purple">SQLCoder 7B Model</span>
+    <span class="badge badge-cyan">Amazon Redshift</span>
+    <span class="badge badge-green">Auto Chart Detection</span>
+  </div>
+
+  <h2>How It Works</h2>
+  <p>A natural language question travels through eleven stages before results reach the client. Each stage is independently optimised for correctness and safety.</p>
+
+  <div class="diagram-box">NLQ Input ──> [1. Validate & Sanitize] ──> [2. Rate Limiting] ──> [3. Target Resolution]
+                   │
+                   └──> [4. Prompt Engineering] (DDL + ENUMs + Constraints)
+                            │
+                            └──> [5. SQLCoder-7B AI Inference] ──> (LRU Cache Check)
+                                     │
+                                     └──> [6. 17 SQL Fixers Post-Processing]
+                                              │
+                                              └──> [7. Security Validation Layer]
+                                                       │
+                                                       └──> [8. AWS Redshift Execution] (Self-Correct Loop)
+                                                                │
+                                                                └──> [9. Display Detection & Formatting] ──> JSON Response</div>
+
+  <div class="pipeline-container">
+    <!-- Step 1 -->
+    <div class="step-box">
+      <div class="step-header">
+        <div class="step-title-area">
+          <span class="step-number">1</span>
+          <span class="step-title">Input Validation &amp; Sanitization</span>
+        </div>
+        <span class="step-module">app/input_validator.py</span>
+      </div>
+      <div class="step-body">
+        Every question is checked for XSS payloads, SQL injection patterns, and length bounds (2–2000 characters) before touching any internal system. Dangerous content is rejected with HTTP 400 in strict mode. The sanitized version of the text is used for all downstream steps.
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step-box">
+      <div class="step-header">
+        <div class="step-title-area">
+          <span class="step-number">2</span>
+          <span class="step-title">Rate Limiting</span>
+        </div>
+        <span class="step-module">app/rate_limiter.py</span>
+      </div>
+      <div class="step-body">
+        A token bucket enforces <strong>2 requests per second</strong> with a burst allowance of 10. Exceeding the limit returns HTTP 429 with a <code>Retry-After</code> header. This protects the GPU from being overwhelmed during multi-second inference.
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step-box">
+      <div class="step-header">
+        <div class="step-title-area">
+          <span class="step-number">3</span>
+          <span class="step-title">Target Resolution</span>
+        </div>
+        <span class="step-module">app/redshift_config.py</span>
+      </div>
+      <div class="step-body">
+        The <code>redshift_target</code> field in the request selects a database domain — either <code>default</code> (maintenance orders) or <code>incident</code> (hotel incident recovery). Each target has its own schema, table list, and access rules.
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step-box">
+      <div class="step-header">
+        <div class="step-title-area">
+          <span class="step-number">4</span>
+          <span class="step-title">Prompt Engineering</span>
+        </div>
+        <span class="step-module">app/prompt.py · app/schema_loader.py · app/query_normalizer.py</span>
+      </div>
+      <div class="step-body">
+        <p>The system builds a rich prompt that provides the AI model with everything required to produce an accurate Redshift query:</p>
+        <ul>
+          <li><strong>Database Schema:</strong> DDL statements loaded directly from the Redshift metadata (cached).</li>
+          <li><strong>Allowed Values:</strong> <code>DISTINCT</code> ENUMs injected to prevent hallucinated states.</li>
+          <li><strong>Entity Hints:</strong> Pre-extracted names, locations, and explicit static calendar bounds.</li>
+          <li><strong>Access Control Constraints:</strong> Compulsory tenancy structures are embedded directly.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="step-box">
+      <div class="step-header">
+        <div class="step-title-area">
+          <span class="step-number">5</span>
+          <span class="step-title">AI Model Inference (GPU)</span>
+        </div>
+        <span class="step-module">app/sqlcoder.py · defog/sqlcoder-7b-2</span>
+      </div>
+      <div class="step-body">
+        The prompt is sent to <strong>defog/sqlcoder-7b-2</strong>, a 7-billion parameter language model fine-tuned specifically for SQL generation. The model runs on GPU (float16, ~13 GB VRAM) and produces a SQL query in 2–10 seconds. Results are cached by prompt hash, so identical questions return instantly.
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="step-box">
+      <div class="step-header">
+        <div class="step-title-area">
+          <span class="step-number">6</span>
+          <span class="step-title">SQL Post-Processing — 17 Fixers</span>
+        </div>
+        <span class="step-module">app/sqlcoder.py (Stage A) · app/main.py (Stage B)</span>
+      </div>
+      <div class="step-body">
+        Even the best SQL models make systematic mistakes. A two-stage post-processing pipeline applies <strong>17 targeted regex-based fixers</strong> to correct known failure patterns (such as fixing dialect syntax like rewriting <code>date_add</code> to <code>DATEADD</code> or dropping missing keys/joins) before execution.
+      </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="step-box">
+      <div class="step-header">
+        <div class="step-title-area">
+          <span class="step-number">7</span>
+          <span class="step-title">SQL Safety Validation</span>
+        </div>
+        <span class="step-module">app/security.py</span>
+      </div>
+      <div class="step-body">
+        Before any SQL reaches the database, a security validator checks that no write operations (<code>DROP</code>, <code>DELETE</code>, <code>INSERT</code>, <code>UPDATE</code>, etc.) appear in the query, and that all referenced tables belong to an approved target whitelist.
+      </div>
+    </div>
+
+    <!-- Step 8 -->
+    <div class="step-box">
+      <div class="step-header">
+        <div class="step-title-area">
+          <span class="step-number">8</span>
+          <span class="step-title">Redshift Execution &amp; Self-Correction Loop</span>
+        </div>
+        <span class="step-module">app/redshift_client.py</span>
+      </div>
+      <div class="step-body">
+        The validated SQL is executed against Amazon Redshift. Results are capped at 100 rows. If an execution runtime error occurs, the system passes the database message context back into an internal <strong>Self-Correction Loop</strong> to retry generation up to twice automatically.
+      </div>
+    </div>
+
+    <!-- Step 9 -->
+    <div class="step-box">
+      <div class="step-header">
+        <div class="step-title-area">
+          <span class="step-number">9</span>
+          <span class="step-title">Display Type Detection &amp; Formatting</span>
+        </div>
+        <span class="step-module">app/display_hint.py · app/chart_formatter.py</span>
+      </div>
+      <div class="step-body">
+        The API evaluates the structured output and maps columns automatically into Chart.js friendly payload packages. It automatically suggests whether the dataset looks best as a <code>metric</code>, <code>bar</code>, <code>line</code>, or plain <code>table</code> display layout.
+      </div>
+    </div>
+  </div>
+
+  <h2>Analytics Domains</h2>
+  <div class="github-grid">
+    <div class="box-card">
+      <div class="box-card-title">📦 Maintenance Orders <code>(target: "default")</code></div>
+      <p style="font-size: 13px; color: #57606a;">Tracks hotel maintenance work orders from creation through completion. Includes status, priority, location, department, and date dimensions.</p>
+      <code style="font-size:11px; display:block; padding: 8px;">Tables: maintenance_order, master_maintenance_status, master_job_priority, property_location</code>
+    </div>
+    <div class="box-card">
+      <div class="box-card-title">📦 Incident Recovery <code>(target: "incident")</code></div>
+      <p style="font-size: 13px; color: #57606a;">Tracks guest incident reports and recovery actions across hotel properties. Uses a pre-joined flat view — no SQL JOINs required.</p>
+      <code style="font-size:11px; display:block; padding: 8px;">View: mv_recovery_all (Fully denormalized view query)</code>
+    </div>
+  </div>
+
+  <h2>Query &amp; Display Types</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Display Type</th>
+        <th>Description</th>
+        <th>Example Natural Language Question</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>▣ Metric</strong></td>
+        <td>Single numeric KPI — counts, totals, averages, percentages.</td>
+        <td><code>"What is the average actual cost per incident?"</code></td>
+      </tr>
+      <tr>
+        <td><strong>▬ Bar Chart</strong></td>
+        <td>Categorical comparisons — counts or averages grouped by a dimension.</td>
+        <td><code>"Show maintenance order count by status"</code></td>
+      </tr>
+      <tr>
+        <td><strong>～ Line Chart</strong></td>
+        <td>Time series trends — daily, weekly, or monthly aggregations.</td>
+        <td><code>"Show the monthly trend of maintenance orders created"</code></td>
+      </tr>
+      <tr>
+        <td><strong>≡ Table</strong></td>
+        <td>Raw record listings — recent items, multi-column detail views.</td>
+        <td><code>"Show the 10 most recent incidents"</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Performance Characteristics</h2>
+  <ul>
+    <li><strong>Prompt Construction:</strong> ~5ms (schema info cached in-memory)</li>
+    <li><strong>GPU Model Inference:</strong> 2–10 seconds (uncached cold run)</li>
+    <li><strong>LRU Cache Read:</strong> 0ms (instant hash index lookup matches)</li>
+    <li><strong>Redshift Query:</strong> ~200ms (direct standalone roundtrips)</li>
+  </ul>
+
+  <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #d0d7de; font-size: 12px; color: #57606a; text-align: center;">
+    NLQ Analytics API • Powered by defog/sqlcoder-7b-2 and Amazon Redshift
+  </div>
+</div>
+
+</body>
+</html>

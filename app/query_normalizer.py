@@ -1,756 +1,176 @@
-# app/query_normalizer.py
-# Natural language query normalization for ~90% accuracy
-# Handles entity aliases, abbreviations, and fuzzy matching
-# Updated with real data from Redshift database
-
-from typing import Dict, List, Tuple, Optional, Set
+_AL='category_name'
+_AK='department_name'
+_AJ='status_name'
+_AI='severity_name'
+_AH='incident_name'
+_AG='property_name'
+_AF='last month'
+_AE='this month'
+_AD='last week'
+_AC='this week'
+_AB='Alleged Food-borne Illness'
+_AA='Foreign Object in Food / Beverage'
+_A9='Delay of Service'
+_A8='Product Quality'
+_A7='lost property'
+_A6='staff attitude'
+_A5='Reservation'
+_A4='The Lobby'
+_A3='Banquet & Event'
+_A2='Engineering'
+_A1='reservation'
+_A0='reservations'
+_z='transportation'
+_y='transport'
+_x='safety'
+_w='security'
+_v='checkout'
+_u='check-in'
+_t='check in'
+_s='front office'
+_r='dining'
+_q='restaurant'
+_p='food and beverage'
+_o='housekeeping'
+_n='waiting'
+_m='Positive Comments'
+_l='Abnormal Smell / Odour'
+_k='Billing Issue / Dispute Charge'
+_j='Staff Attitude'
+_i='Noise - Guest Room'
+_h='Data Privacy'
+_g='Guest Room'
+_f='Safety & Security'
+_e='The Peninsula Istanbul'
+_d='last 7 days'
+_c='Guest Injury / Sickness'
+_b='Power Failure / Black Out'
+_a='Lost / Damaged Guest Property'
+_Z='Systems'
+_Y='Reservations'
+_X='In Room Dining'
+_W=True
+_V='Hotel Facilities'
+_U='Disturbance'
+_T='Spa & Wellness'
+_S='The Peninsula London'
+_R='The Peninsula Manila'
+_Q='Plumbing / Drainage Issue'
+_P='Billing'
+_O='Service Quality'
+_N='Room Condition'
+_M='The Peninsula Bangkok'
+_L=None
+_K='AC Issue'
+_J='Health & Safety'
+_I='Transportation'
+_H='Security'
+_G='Housekeeping'
+_F='cancelled'
+_E='The Peninsula Hong Kong'
+_D='completed'
+_C='Front Office'
+_B='pending'
+_A='Food & Beverage'
+from typing import Dict,List,Tuple,Optional,Set
 from functools import lru_cache
-import re
-import logging
-
-logger = logging.getLogger(__name__)
-
-# ============================================================================
-# ENTITY ALIASES: Maps common variations to canonical database values
-# Data sourced from actual Redshift database queries
-# ============================================================================
-
-# Property/Hotel name aliases -> canonical name in database
-# Actual DB values: The Peninsula Bangkok, The Peninsula Manila, 
-#                   The Peninsula Hong Kong, The Peninsula London, The Peninsula Istanbul
-PROPERTY_ALIASES: Dict[str, str] = {
-    # Bangkok
-    "peninsula bangkok": "The Peninsula Bangkok",
-    "pen bangkok": "The Peninsula Bangkok",
-    "bkk peninsula": "The Peninsula Bangkok",
-    "peninsula bkk": "The Peninsula Bangkok",
-    "bangkok": "The Peninsula Bangkok",
-    "bkk": "The Peninsula Bangkok",
-    
-    # Manila
-    "peninsula manila": "The Peninsula Manila",
-    "pen manila": "The Peninsula Manila",
-    "manila peninsula": "The Peninsula Manila",
-    "manila": "The Peninsula Manila",
-    "mnl": "The Peninsula Manila",
-    
-    # Hong Kong
-    "peninsula hong kong": "The Peninsula Hong Kong",
-    "peninsula hk": "The Peninsula Hong Kong",
-    "pen hk": "The Peninsula Hong Kong",
-    "hk peninsula": "The Peninsula Hong Kong",
-    "hong kong": "The Peninsula Hong Kong",
-    "hk": "The Peninsula Hong Kong",
-    "hongkong": "The Peninsula Hong Kong",
-    
-    # London
-    "peninsula london": "The Peninsula London",
-    "pen london": "The Peninsula London",
-    "london peninsula": "The Peninsula London",
-    "london": "The Peninsula London",
-    "ldn": "The Peninsula London",
-    
-    # Istanbul
-    "peninsula istanbul": "The Peninsula Istanbul",
-    "pen istanbul": "The Peninsula Istanbul",
-    "istanbul peninsula": "The Peninsula Istanbul",
-    # Note: Don't add just "istanbul" to avoid false matches like "Disturbance"
-    
-    # Generic Peninsula references (will need context)
-    "the peninsula": "The Peninsula",  # Keep generic
-}
-
-# Severity aliases — NOT used for maintenance order schema (no severity column).
-# Kept empty to avoid injecting false severity_name hints.
-SEVERITY_ALIASES: Dict[str, str] = {}
-
-# Status aliases -> canonical database value (actual DB values: pending, completed, cancelled)
-STATUS_ALIASES: Dict[str, str] = {
-    # Pending mappings
-    "pending": "pending",
-    "open": "pending",
-    "active": "pending",
-    "in progress": "pending",
-    "ongoing": "pending",
-    "unresolved": "pending",
-    "outstanding": "pending",
-    "waiting": "pending",
-    "new": "pending",
-    "not completed": "pending",
-    "incomplete": "pending",
-    
-    # Completed mappings
-    "completed": "completed",
-    "done": "completed",
-    "finished": "completed",
-    "resolved": "completed",
-    "closed": "completed",
-    "fixed": "completed",
-    "complete": "completed",
-    
-    # Cancelled mappings
-    "cancelled": "cancelled",
-    "canceled": "cancelled",
-    "dropped": "cancelled",
-    "abandoned": "cancelled",
-    "voided": "cancelled",
-    "withdrawn": "cancelled",
-}
-
-# Department aliases -> canonical database value
-# Actual DB values include: Housekeeping, Front Office, IT, Engineering, Events, 
-#                           Spa & Wellness, Food & Beverage, Security, etc.
-DEPARTMENT_ALIASES: Dict[str, str] = {
-    # Housekeeping
-    "hk": "Housekeeping",
-    "housekeeping": "Housekeeping",
-    "house keeping": "Housekeeping",
-    "cleaning": "Housekeeping",
-    "cleaners": "Housekeeping",
-    "room cleaning": "Housekeeping",
-    
-    # Food & Beverage
-    "fb": "Food & Beverage",
-    "f&b": "Food & Beverage",
-    "food and beverage": "Food & Beverage",
-    "food beverage": "Food & Beverage",
-    "restaurant": "Food & Beverage",
-    "dining": "Food & Beverage",
-    "kitchen": "Food & Beverage",
-    "fnb": "Food & Beverage",
-    
-    # Front Office
-    "fo": "Front Office",
-    "front office": "Front Office",
-    "front desk": "Front Office",
-    "reception": "Front Office",
-    "check in": "Front Office",
-    "check-in": "Front Office",
-    "checkout": "Front Office",
-    "check-out": "Front Office",
-    
-    # Concierge
-    "concierge": "Concierge",
-    
-    # Engineering
-    "eng": "Engineering",
-    "engineering": "Engineering",
-    
-    # Security / Safety
-    "sec": "Security",
-    "security": "Security",
-    "safety": "Safety & Security",
-    "safety & security": "Safety & Security",
-    "safety and security": "Safety & Security",
-    
-    # Spa & Wellness
-    "spa": "Spa & Wellness",
-    "wellness": "Spa & Wellness",
-    "spa & wellness": "Spa & Wellness",
-    "spa and wellness": "Spa & Wellness",
-    "massage": "Spa & Wellness",
-    
-    # IT
-    "it": "IT",
-    "tech": "IT",
-    "technology": "IT",
-    "it & elv": "IT & ELV",
-    
-    # Room Service / In Room Dining
-    "room service": "Room Service",
-    "ird": "In Room Dining",
-    "in room dining": "In Room Dining",
-    "in-room dining": "In Room Dining",
-    "inroom dining": "In Room Dining",
-    
-    # Guest Services
-    "guest services": "Guest Services",
-    "guest service": "Guest Service",
-    "guest experience": "Guest Experience",
-    "gcc": "Guest Communication Centre",
-    "gcc": "GCC",
-    
-    # Events & Banquets
-    "events": "Events",
-    "banquet": "Banquet & Event",
-    "banquets": "Banquets & Events",
-    "banquet & event": "Banquet & Event",
-    
-    # Transportation
-    "transport": "Transportation",
-    "transportation": "Transportation",
-    "driver": "Transportation",
-    "limo": "Transportation",
-    "car": "Transportation",
-    
-    # The Lobby
-    "lobby": "The Lobby",
-    "the lobby": "The Lobby",
-    
-    # Laundry
-    "laundry": "Laundry",
-    
-    # Reservations
-    "reservations": "Reservations",
-    "reservation": "Reservation",
-    "booking": "Reservations",
-}
-
-# Category aliases -> canonical database value
-# Actual DB values: Food & Beverage, Systems, Billing, Service Quality, Room Condition,
-#                   Security, Front Office, Transportation, Hotel Facilities, Housekeeping,
-#                   Disturbance, Reservations, Guest Services, Guest Room, Health & Safety, etc.
-CATEGORY_ALIASES: Dict[str, str] = {
-    # Room Condition
-    "room condition": "Room Condition",
-    "room cleanliness": "Room Condition",
-    "dirty room": "Room Condition",
-    "unclean room": "Room Condition",
-    "cleaning issue": "Room Condition",
-    "room issue": "Room Condition",
-    
-    # Guest Room
-    "guest room": "Guest Room",
-    "guestroom": "Guest Room",
-    "room": "Guest Room",
-    
-    # Housekeeping (category)
-    "housekeeping": "Housekeeping",
-    
-    # Service Quality
-    "service": "Service Quality",
-    "service quality": "Service Quality",
-    "poor service": "Service Quality",
-    "bad service": "Service Quality",
-    "staff attitude": "Service Quality",
-    "attitude": "Service Quality",
-    
-    # Food & Beverage (category)
-    "food": "Food & Beverage",
-    "beverage": "Food & Beverage",
-    "food & beverage": "Food & Beverage",
-    "food and beverage": "Food & Beverage",
-    "restaurant": "Food & Beverage",
-    "dining": "Food & Beverage",
-    
-    # Billing
-    "billing": "Billing",
-    "bill": "Billing",
-    "payment": "Billing",
-    "charge": "Billing",
-    "invoice": "Billing",
-    "dispute": "Billing",
-    
-    # Disturbance / Noise
-    "noise": "Disturbance",
-    "disturbance": "Disturbance",
-    "loud": "Disturbance",
-    "noisy": "Disturbance",
-    "noise complaint": "Disturbance",
-    
-    # Security
-    "security": "Security",
-    "theft": "Security",
-    "lost": "Security",
-    "stolen": "Security",
-    "lost property": "Security",
-    
-    # Health & Safety
-    "health & safety": "Health & Safety",
-    "health and safety": "Health & Safety",
-    "safety": "Health & Safety",
-    "injury": "Health & Safety",
-    "sickness": "Health & Safety",
-    "illness": "Health & Safety",
-    "medical": "Health & Safety",
-    
-    # Systems
-    "systems": "Systems",
-    "system": "Systems",
-    "technical": "Systems",
-    "it issue": "Systems",
-    
-    # Hotel Facilities
-    "facilities": "Hotel Facilities",
-    "hotel facilities": "Hotel Facilities",
-    "facility": "Hotel Facilities",
-    "pool": "Pool",
-    "gym": "Hotel Facilities",
-    "fitness": "Hotel Facilities",
-    
-    # Front Office (category)
-    "front office": "Front Office",
-    "check-in": "Front Office",
-    "check in": "Front Office",
-    "checkout": "Front Office",
-    
-    # Transportation
-    "transportation": "Transportation",
-    "transport": "Transportation",
-    
-    # Reservations
-    "reservation": "Reservation",
-    "reservations": "Reservations",
-    "booking": "Reservations",
-    
-    # Spa
-    "spa": "Spa",
-    
-    # Laundry
-    "laundry": "Laundry",
-    
-    # Data Privacy
-    "data privacy": "Data Privacy",
-    "privacy": "Data Privacy",
-    "gdpr": "Data Privacy",
-    
-    # Product Quality
-    "product quality": "Product Quality",
-    "quality": "Product Quality",
-    
-    # Clinic
-    "clinic": "Clinic",
-    "doctor": "Clinic",
-}
-
-# Common incident type aliases
-INCIDENT_ALIASES: Dict[str, str] = {
-    # Plumbing
-    "plumbing": "Plumbing / Drainage Issue",
-    "drainage": "Plumbing / Drainage Issue",
-    "clogged": "Plumbing / Drainage Issue",
-    "blocked drain": "Plumbing / Drainage Issue",
-    "toilet": "Plumbing / Drainage Issue",
-    "leak": "Plumbing / Drainage Issue",
-    
-    # AC / Temperature
-    "ac issue": "AC Issue",
-    "ac": "AC Issue",
-    "air conditioning": "AC Issue",
-    "aircon": "AC Issue",
-    "temperature": "AC Issue",
-    "cold room": "AC Issue",
-    "hot room": "AC Issue",
-    
-    # Noise
-    "noise": "Noise - Guest Room",
-    "noisy": "Noise - Guest Room",
-    "loud": "Noise - Guest Room",
-    
-    # Lost property
-    "lost property": "Lost / Damaged Guest Property",
-    "lost item": "Lost / Damaged Guest Property",
-    "missing item": "Lost / Damaged Guest Property",
-    "damaged property": "Lost / Damaged Guest Property",
-    
-    # Staff attitude
-    "staff attitude": "Staff Attitude",
-    "rude staff": "Staff Attitude",
-    "unfriendly": "Staff Attitude",
-    
-    # Delay
-    "delay": "Delay of Service",
-    "waiting": "Long Waiting Time",
-    "slow service": "Delay of Service",
-    
-    # Billing
-    "billing issue": "Billing Issue / Dispute Charge",
-    "wrong charge": "Billing Issue / Dispute Charge",
-    "overcharge": "Billing Issue / Dispute Charge",
-    
-    # Food related
-    "foreign object": "Foreign Object in Food / Beverage",
-    "hair in food": "Foreign Object in Food / Beverage",
-    "food illness": "Alleged Food-borne Illness",
-    "food poisoning": "Alleged Food-borne Illness",
-    
-    # Power
-    "power failure": "Power Failure / Black Out",
-    "blackout": "Power Failure / Black Out",
-    "power outage": "Power Failure / Black Out",
-    "no power": "Power Failure / Black Out",
-    
-    # Room not ready
-    "room not ready": "Room Not Ready / Front Office",
-    "wait for room": "Wait for Room",
-    
-    # Smell
-    "smell": "Abnormal Smell / Odour",
-    "odour": "Abnormal Smell / Odour",
-    "odor": "Abnormal Smell / Odour",
-    "sewage smell": "Sewage Smell",
-    
-    # Guest injury
-    "injury": "Guest Injury / Sickness",
-    "injured": "Guest Injury / Sickness",
-    "sick": "Guest Injury / Sickness",
-    "medical": "Guest Injury / Sickness",
-    "medical emergency": "Code 444 - Medical Emergency",
-    
-    # Positive feedback
-    "positive": "Positive Comments",
-    "compliment": "Positive Comments",
-    "praise": "Positive Comments",
-    "good feedback": "Positive Feedback",
-}
-
-# Time expression normalization (dead code — kept for reference only)
-TIME_ALIASES: Dict[str, str] = {
-    "today": "today",
-    "yesterday": "1 day ago",
-    "this week": "this week (calendar boundary)",
-    "last week": "last week (previous Mon–Sun)",
-    "past week": "last 7 days",
-    "this month": "this month (calendar boundary)",
-    "last month": "last month (previous calendar month)",
-    "past month": "last 30 days",
-    "this year": "last 365 days",
-    "recent": "last 7 days",
-    "recently": "last 7 days",
-    "latest": "last 7 days",
-}
-
-# Explicit SQL hints for calendar date expressions.
-# These are injected as entity hints in the prompt so the model has concrete
-# SQL to copy rather than inferring from general instructions.
-_TIME_SQL_HINTS: Dict[str, str] = {
-    "this week": (
-        "Use this exact date filter for 'this week': "
-        "date_parse(snapshotdate, '%Y-%m-%d') >= date_trunc('week', current_date)"
-    ),
-    "this month": (
-        "Use this exact date filter for 'this month': "
-        "date_parse(snapshotdate, '%Y-%m-%d') >= date_trunc('month', current_date)"
-    ),
-    "last week": (
-        "Use this exact date filter for 'last week': "
-        "date_parse(snapshotdate, '%Y-%m-%d') >= date_add('week', -1, date_trunc('week', current_date)) "
-        "AND date_parse(snapshotdate, '%Y-%m-%d') < date_trunc('week', current_date)"
-    ),
-    "last month": (
-        "Use this exact date filter for 'last month': "
-        "date_parse(snapshotdate, '%Y-%m-%d') >= date_add('month', -1, date_trunc('month', current_date)) "
-        "AND date_parse(snapshotdate, '%Y-%m-%d') < date_trunc('month', current_date)"
-    ),
-}
-
-
-def get_time_expression_hint(text: str) -> Optional[str]:
-    """
-    Return an explicit SQL date-filter hint if the query mentions a calendar
-    time expression ('this week', 'this month', 'last week', 'last month').
-    Returns None if no match is found.
-    """
-    text_lower = text.lower()
-    # Check longest expressions first to avoid partial matches
-    for expr in sorted(_TIME_SQL_HINTS, key=len, reverse=True):
-        if expr in text_lower:
-            return _TIME_SQL_HINTS[expr]
-    return None
-
-# ============================================================================
-# FUZZY MATCHING UTILITIES
-# ============================================================================
-
-def _normalize_text(text: str) -> str:
-    """Normalize text for comparison: lowercase, collapse whitespace, strip."""
-    if not text:
-        return ""
-    return re.sub(r'\s+', ' ', text.lower().strip())
-
-
-def _calculate_similarity(s1: str, s2: str) -> float:
-    """
-    Calculate similarity ratio between two strings using character-level comparison.
-    Returns value between 0.0 (no match) and 1.0 (exact match).
-    """
-    if not s1 or not s2:
-        return 0.0
-    
-    s1_norm = _normalize_text(s1)
-    s2_norm = _normalize_text(s2)
-    
-    if s1_norm == s2_norm:
-        return 1.0
-    
-    # Check if one contains the other
-    if s1_norm in s2_norm or s2_norm in s1_norm:
-        return 0.8
-    
-    # Character-level Jaccard similarity
-    set1 = set(s1_norm.replace(" ", ""))
-    set2 = set(s2_norm.replace(" ", ""))
-    
-    if not set1 or not set2:
-        return 0.0
-    
-    intersection = len(set1 & set2)
-    union = len(set1 | set2)
-    
-    return intersection / union if union > 0 else 0.0
-
-
-def _find_best_match(query: str, candidates: Dict[str, str], threshold: float = 0.7) -> Optional[str]:
-    """
-    Find the best matching canonical value for a query string.
-    
-    Args:
-        query: The user's input text
-        candidates: Dict mapping aliases to canonical values
-        threshold: Minimum similarity score to accept a match
-        
-    Returns:
-        Canonical value if match found, None otherwise
-    """
-    query_norm = _normalize_text(query)
-    
-    # Exact match first
-    if query_norm in candidates:
-        return candidates[query_norm]
-    
-    # Fuzzy match
-    best_score = 0.0
-    best_match = None
-    
-    for alias, canonical in candidates.items():
-        score = _calculate_similarity(query_norm, alias)
-        if score > best_score and score >= threshold:
-            best_score = score
-            best_match = canonical
-    
-    return best_match
-
-
-# ============================================================================
-# QUERY NORMALIZATION FUNCTIONS
-# ============================================================================
-
-def normalize_property_name(text: str) -> Tuple[str, Optional[str]]:
-    """
-    Extract and normalize property/hotel name from query text.
-    
-    Args:
-        text: User's query text
-        
-    Returns:
-        Tuple of (normalized_text, canonical_property_name or None)
-    """
-    text_lower = text.lower()
-    
-    # Sort aliases by length (longest first) to match most specific first
-    sorted_aliases = sorted(PROPERTY_ALIASES.keys(), key=len, reverse=True)
-    
-    for alias in sorted_aliases:
-        # Use word boundary matching to avoid partial word matches
-        pattern = re.compile(rf'\b{re.escape(alias)}\b', re.IGNORECASE)
-        if pattern.search(text_lower):
-            canonical = PROPERTY_ALIASES[alias]
-            normalized_text = pattern.sub(canonical, text, count=1)
-            logger.debug(f"Property alias matched: '{alias}' -> '{canonical}'")
-            return normalized_text, canonical
-    
-    return text, None
-
-
-def normalize_severity(text: str) -> Tuple[str, Optional[str]]:
-    """Normalize severity-related terms in query text."""
-    text_lower = text.lower()
-    
-    for alias, canonical in SEVERITY_ALIASES.items():
-        # Use word boundary matching to avoid partial matches
-        pattern = re.compile(rf'\b{re.escape(alias)}\b', re.IGNORECASE)
-        if pattern.search(text_lower):
-            normalized_text = pattern.sub(canonical, text)
-            logger.debug(f"Severity alias matched: '{alias}' -> '{canonical}'")
-            return normalized_text, canonical
-    
-    return text, None
-
-
-def normalize_status(text: str) -> Tuple[str, Optional[str]]:
-    """Normalize status-related terms in query text."""
-    text_lower = text.lower()
-    
-    for alias, canonical in STATUS_ALIASES.items():
-        pattern = re.compile(rf'\b{re.escape(alias)}\b', re.IGNORECASE)
-        if pattern.search(text_lower):
-            normalized_text = pattern.sub(canonical, text)
-            logger.debug(f"Status alias matched: '{alias}' -> '{canonical}'")
-            return normalized_text, canonical
-    
-    return text, None
-
-
-def normalize_department(text: str) -> Tuple[str, Optional[str]]:
-    """Normalize department-related terms in query text."""
-    text_lower = text.lower()
-    
-    # Sort by length (longest first) to match most specific first
-    sorted_aliases = sorted(DEPARTMENT_ALIASES.keys(), key=len, reverse=True)
-    
-    for alias in sorted_aliases:
-        pattern = re.compile(rf'\b{re.escape(alias)}\b', re.IGNORECASE)
-        if pattern.search(text_lower):
-            canonical = DEPARTMENT_ALIASES[alias]
-            normalized_text = pattern.sub(canonical, text)
-            logger.debug(f"Department alias matched: '{alias}' -> '{canonical}'")
-            return normalized_text, canonical
-    
-    return text, None
-
-
-def normalize_category(text: str) -> Tuple[str, Optional[str]]:
-    """Normalize category-related terms in query text."""
-    text_lower = text.lower()
-    
-    # Sort by length for longest match first
-    sorted_aliases = sorted(CATEGORY_ALIASES.keys(), key=len, reverse=True)
-    
-    for alias in sorted_aliases:
-        # Use word boundary for more accurate matching
-        pattern = re.compile(rf'\b{re.escape(alias)}\b', re.IGNORECASE)
-        if pattern.search(text_lower):
-            canonical = CATEGORY_ALIASES[alias]
-            normalized_text = pattern.sub(canonical, text)
-            logger.debug(f"Category alias matched: '{alias}' -> '{canonical}'")
-            return normalized_text, canonical
-    
-    return text, None
-
-
-def normalize_incident_type(text: str) -> Tuple[str, Optional[str]]:
-    """Normalize incident type references in query text."""
-    text_lower = text.lower()
-    
-    # Sort by length for longest match first
-    sorted_aliases = sorted(INCIDENT_ALIASES.keys(), key=len, reverse=True)
-    
-    for alias in sorted_aliases:
-        # Use word boundary for more accurate matching
-        pattern = re.compile(rf'\b{re.escape(alias)}\b', re.IGNORECASE)
-        if pattern.search(text_lower):
-            canonical = INCIDENT_ALIASES[alias]
-            normalized_text = pattern.sub(canonical, text)
-            logger.debug(f"Incident alias matched: '{alias}' -> '{canonical}'")
-            return normalized_text, canonical
-    
-    return text, None
-
-
+import re,logging
+logger=logging.getLogger(__name__)
+PROPERTY_ALIASES={'peninsula bangkok':_M,'pen bangkok':_M,'bkk peninsula':_M,'peninsula bkk':_M,'bangkok':_M,'bkk':_M,'peninsula manila':_R,'pen manila':_R,'manila peninsula':_R,'manila':_R,'mnl':_R,'peninsula hong kong':_E,'peninsula hk':_E,'pen hk':_E,'hk peninsula':_E,'hong kong':_E,'hk':_E,'hongkong':_E,'peninsula london':_S,'pen london':_S,'london peninsula':_S,'london':_S,'ldn':_S,'peninsula istanbul':_e,'pen istanbul':_e,'istanbul peninsula':_e,'the peninsula':'The Peninsula'}
+SEVERITY_ALIASES={}
+STATUS_ALIASES={_B:_B,'open':_B,'active':_B,'in progress':_B,'ongoing':_B,'unresolved':_B,'outstanding':_B,_n:_B,'new':_B,'not completed':_B,'incomplete':_B,_D:_D,'done':_D,'finished':_D,'resolved':_D,'closed':_D,'fixed':_D,'complete':_D,_F:_F,'canceled':_F,'dropped':_F,'abandoned':_F,'voided':_F,'withdrawn':_F}
+DEPARTMENT_ALIASES={'hk':_G,_o:_G,'house keeping':_G,'cleaning':_G,'cleaners':_G,'room cleaning':_G,'fb':_A,'f&b':_A,_p:_A,'food beverage':_A,_q:_A,_r:_A,'kitchen':_A,'fnb':_A,'fo':_C,_s:_C,'front desk':_C,'reception':_C,_t:_C,_u:_C,_v:_C,'check-out':_C,'concierge':'Concierge','eng':_A2,'engineering':_A2,'sec':_H,_w:_H,_x:_f,'safety & security':_f,'safety and security':_f,'spa':_T,'wellness':_T,'spa & wellness':_T,'spa and wellness':_T,'massage':_T,'it':'IT','tech':'IT','technology':'IT','it & elv':'IT & ELV','room service':'Room Service','ird':_X,'in room dining':_X,'in-room dining':_X,'inroom dining':_X,'guest services':'Guest Services','guest service':'Guest Service','guest experience':'Guest Experience','gcc':'Guest Communication Centre','gcc':'GCC','events':'Events','banquet':_A3,'banquets':'Banquets & Events','banquet & event':_A3,_y:_I,_z:_I,'driver':_I,'limo':_I,'car':_I,'lobby':_A4,'the lobby':_A4,'laundry':'Laundry',_A0:_Y,_A1:_A5,'booking':_Y}
+CATEGORY_ALIASES={'room condition':_N,'room cleanliness':_N,'dirty room':_N,'unclean room':_N,'cleaning issue':_N,'room issue':_N,'guest room':_g,'guestroom':_g,'room':_g,_o:_G,'service':_O,'service quality':_O,'poor service':_O,'bad service':_O,_A6:_O,'attitude':_O,'food':_A,'beverage':_A,'food & beverage':_A,_p:_A,_q:_A,_r:_A,'billing':_P,'bill':_P,'payment':_P,'charge':_P,'invoice':_P,'dispute':_P,'noise':_U,'disturbance':_U,'loud':_U,'noisy':_U,'noise complaint':_U,_w:_H,'theft':_H,'lost':_H,'stolen':_H,_A7:_H,'health & safety':_J,'health and safety':_J,_x:_J,'injury':_J,'sickness':_J,'illness':_J,'medical':_J,'systems':_Z,'system':_Z,'technical':_Z,'it issue':_Z,'facilities':_V,'hotel facilities':_V,'facility':_V,'pool':'Pool','gym':_V,'fitness':_V,_s:_C,_u:_C,_t:_C,_v:_C,_z:_I,_y:_I,_A1:_A5,_A0:_Y,'booking':_Y,'spa':'Spa','laundry':'Laundry','data privacy':_h,'privacy':_h,'gdpr':_h,'product quality':_A8,'quality':_A8,'clinic':'Clinic','doctor':'Clinic'}
+INCIDENT_ALIASES={'plumbing':_Q,'drainage':_Q,'clogged':_Q,'blocked drain':_Q,'toilet':_Q,'leak':_Q,'ac issue':_K,'ac':_K,'air conditioning':_K,'aircon':_K,'temperature':_K,'cold room':_K,'hot room':_K,'noise':_i,'noisy':_i,'loud':_i,_A7:_a,'lost item':_a,'missing item':_a,'damaged property':_a,_A6:_j,'rude staff':_j,'unfriendly':_j,'delay':_A9,_n:'Long Waiting Time','slow service':_A9,'billing issue':_k,'wrong charge':_k,'overcharge':_k,'foreign object':_AA,'hair in food':_AA,'food illness':_AB,'food poisoning':_AB,'power failure':_b,'blackout':_b,'power outage':_b,'no power':_b,'room not ready':'Room Not Ready / Front Office','wait for room':'Wait for Room','smell':_l,'odour':_l,'odor':_l,'sewage smell':'Sewage Smell','injury':_c,'injured':_c,'sick':_c,'medical':_c,'medical emergency':'Code 444 - Medical Emergency','positive':_m,'compliment':_m,'praise':_m,'good feedback':'Positive Feedback'}
+TIME_ALIASES={'today':'today','yesterday':'1 day ago',_AC:'this week (calendar boundary)',_AD:'last week (previous Mon–Sun)','past week':_d,_AE:'this month (calendar boundary)',_AF:'last month (previous calendar month)','past month':'last 30 days','this year':'last 365 days','recent':_d,'recently':_d,'latest':_d}
+_TIME_SQL_HINTS={_AC:"Use this exact date filter for 'this week': date_parse(snapshotdate, '%Y-%m-%d') >= date_trunc('week', current_date)",_AE:"Use this exact date filter for 'this month': date_parse(snapshotdate, '%Y-%m-%d') >= date_trunc('month', current_date)",_AD:"Use this exact date filter for 'last week': date_parse(snapshotdate, '%Y-%m-%d') >= date_add('week', -1, date_trunc('week', current_date)) AND date_parse(snapshotdate, '%Y-%m-%d') < date_trunc('week', current_date)",_AF:"Use this exact date filter for 'last month': date_parse(snapshotdate, '%Y-%m-%d') >= date_add('month', -1, date_trunc('month', current_date)) AND date_parse(snapshotdate, '%Y-%m-%d') < date_trunc('month', current_date)"}
+def get_time_expression_hint(text):
+	text_lower=text.lower()
+	for expr in sorted(_TIME_SQL_HINTS,key=len,reverse=_W):
+		if expr in text_lower:return _TIME_SQL_HINTS[expr]
+def _normalize_text(text):
+	if not text:return''
+	return re.sub('\\s+',' ',text.lower().strip())
+def _calculate_similarity(s1,s2):
+	if not s1 or not s2:return .0
+	s1_norm=_normalize_text(s1);s2_norm=_normalize_text(s2)
+	if s1_norm==s2_norm:return 1.
+	if s1_norm in s2_norm or s2_norm in s1_norm:return .8
+	set1=set(s1_norm.replace(' ',''));set2=set(s2_norm.replace(' ',''))
+	if not set1 or not set2:return .0
+	intersection=len(set1&set2);union=len(set1|set2);return intersection/union if union>0 else .0
+def _find_best_match(query,candidates,threshold=.7):
+	query_norm=_normalize_text(query)
+	if query_norm in candidates:return candidates[query_norm]
+	best_score=.0;best_match=_L
+	for(alias,canonical)in candidates.items():
+		score=_calculate_similarity(query_norm,alias)
+		if score>best_score and score>=threshold:best_score=score;best_match=canonical
+	return best_match
+def normalize_property_name(text):
+	text_lower=text.lower();sorted_aliases=sorted(PROPERTY_ALIASES.keys(),key=len,reverse=_W)
+	for alias in sorted_aliases:
+		pattern=re.compile(rf"\b{re.escape(alias)}\b",re.IGNORECASE)
+		if pattern.search(text_lower):canonical=PROPERTY_ALIASES[alias];normalized_text=pattern.sub(canonical,text,count=1);logger.debug(f"Property alias matched: '{alias}' -> '{canonical}'");return normalized_text,canonical
+	return text,_L
+def normalize_severity(text):
+	text_lower=text.lower()
+	for(alias,canonical)in SEVERITY_ALIASES.items():
+		pattern=re.compile(rf"\b{re.escape(alias)}\b",re.IGNORECASE)
+		if pattern.search(text_lower):normalized_text=pattern.sub(canonical,text);logger.debug(f"Severity alias matched: '{alias}' -> '{canonical}'");return normalized_text,canonical
+	return text,_L
+def normalize_status(text):
+	text_lower=text.lower()
+	for(alias,canonical)in STATUS_ALIASES.items():
+		pattern=re.compile(rf"\b{re.escape(alias)}\b",re.IGNORECASE)
+		if pattern.search(text_lower):normalized_text=pattern.sub(canonical,text);logger.debug(f"Status alias matched: '{alias}' -> '{canonical}'");return normalized_text,canonical
+	return text,_L
+def normalize_department(text):
+	text_lower=text.lower();sorted_aliases=sorted(DEPARTMENT_ALIASES.keys(),key=len,reverse=_W)
+	for alias in sorted_aliases:
+		pattern=re.compile(rf"\b{re.escape(alias)}\b",re.IGNORECASE)
+		if pattern.search(text_lower):canonical=DEPARTMENT_ALIASES[alias];normalized_text=pattern.sub(canonical,text);logger.debug(f"Department alias matched: '{alias}' -> '{canonical}'");return normalized_text,canonical
+	return text,_L
+def normalize_category(text):
+	text_lower=text.lower();sorted_aliases=sorted(CATEGORY_ALIASES.keys(),key=len,reverse=_W)
+	for alias in sorted_aliases:
+		pattern=re.compile(rf"\b{re.escape(alias)}\b",re.IGNORECASE)
+		if pattern.search(text_lower):canonical=CATEGORY_ALIASES[alias];normalized_text=pattern.sub(canonical,text);logger.debug(f"Category alias matched: '{alias}' -> '{canonical}'");return normalized_text,canonical
+	return text,_L
+def normalize_incident_type(text):
+	text_lower=text.lower();sorted_aliases=sorted(INCIDENT_ALIASES.keys(),key=len,reverse=_W)
+	for alias in sorted_aliases:
+		pattern=re.compile(rf"\b{re.escape(alias)}\b",re.IGNORECASE)
+		if pattern.search(text_lower):canonical=INCIDENT_ALIASES[alias];normalized_text=pattern.sub(canonical,text);logger.debug(f"Incident alias matched: '{alias}' -> '{canonical}'");return normalized_text,canonical
+	return text,_L
 @lru_cache(maxsize=512)
-def normalize_query(text: str) -> Tuple[str, Dict[str, str]]:
-    """
-    Fully normalize a natural language query, resolving all known aliases.
-    
-    Args:
-        text: The user's natural language query
-        
-    Returns:
-        Tuple of (normalized_text, dict of matched_entities)
-    """
-    if not text:
-        return "", {}
-    
-    normalized = text
-    matched_entities: Dict[str, str] = {}
-    
-    # Apply normalizations in order of specificity (most specific first)
-    normalized, prop = normalize_property_name(normalized)
-    if prop:
-        matched_entities["property_name"] = prop
-    
-    normalized, incident = normalize_incident_type(normalized)
-    if incident:
-        matched_entities["incident_name"] = incident
-    
-    normalized, sev = normalize_severity(normalized)
-    if sev:
-        matched_entities["severity_name"] = sev
-    
-    normalized, status = normalize_status(normalized)
-    if status:
-        matched_entities["status_name"] = status
-    
-    normalized, dept = normalize_department(normalized)
-    if dept:
-        matched_entities["department_name"] = dept
-    
-    normalized, cat = normalize_category(normalized)
-    if cat:
-        matched_entities["category_name"] = cat
-    
-    if matched_entities:
-        logger.info(f"Query normalized: '{text}' -> '{normalized}' (entities: {matched_entities})")
-    
-    return normalized, matched_entities
-
-
-def get_entity_hints(matched_entities: Dict[str, str]) -> str:
-    """
-    Generate SQL hints based on matched entities for the prompt.
-    
-    Args:
-        matched_entities: Dict of column_name -> canonical_value pairs
-        
-    Returns:
-        String of SQL hints to include in prompt
-    """
-    if not matched_entities:
-        return ""
-    
-    hints = []
-    for column, value in matched_entities.items():
-        if column in ("severity_name", "status_name"):
-            # These should be lowercase in SQL
-            hints.append(f"- Use {column} = '{value.lower()}' in WHERE clause")
-        elif column == "incident_name":
-            # Incident names may need LIKE for partial matching
-            hints.append(f"- Use incident_name LIKE '%{value}%' or incident_name = '{value}' in WHERE clause")
-        elif column in ("property_name", "department_name", "category_name"):
-            # These preserve case
-            hints.append(f"- Use {column} = '{value}' in WHERE clause")
-    
-    return "\n".join(hints)
-
-
-def expand_room_reference(text: str) -> str:
-    """
-    Expand room references to match database format.
-    E.g., "room 1018" -> "Room 1018"
-    """
-    # Match patterns like "room 1018", "rm 1018", "room #1018"
-    pattern = re.compile(r'\b(?:room|rm)\s*#?\s*(\d+)\b', re.IGNORECASE)
-    
-    def replace_room(match):
-        room_num = match.group(1)
-        return f"Room {room_num}"
-    
-    return pattern.sub(replace_room, text)
-
-
-def preprocess_query(text: str) -> Tuple[str, Dict[str, str], str]:
-    """
-    Full preprocessing pipeline for natural language queries.
-    
-    Args:
-        text: Raw user query
-        
-    Returns:
-        Tuple of (processed_text, matched_entities, entity_hints)
-    """
-    # Step 1: Expand room references
-    processed = expand_room_reference(text)
-    
-    # Step 2: Normalize all entity references
-    processed, matched_entities = normalize_query(processed)
-    
-    # Step 3: Generate hints for the prompt
-    hints = get_entity_hints(matched_entities)
-    
-    return processed, matched_entities, hints
-
-
-def clear_normalization_cache():
-    """Clear the normalization cache (useful for testing/hot-reloading)."""
-    normalize_query.cache_clear()
-    logger.info("Query normalization cache cleared")
+def normalize_query(text):
+	if not text:return'',{}
+	normalized=text;matched_entities={};normalized,prop=normalize_property_name(normalized)
+	if prop:matched_entities[_AG]=prop
+	normalized,incident=normalize_incident_type(normalized)
+	if incident:matched_entities[_AH]=incident
+	normalized,sev=normalize_severity(normalized)
+	if sev:matched_entities[_AI]=sev
+	normalized,status=normalize_status(normalized)
+	if status:matched_entities[_AJ]=status
+	normalized,dept=normalize_department(normalized)
+	if dept:matched_entities[_AK]=dept
+	normalized,cat=normalize_category(normalized)
+	if cat:matched_entities[_AL]=cat
+	if matched_entities:logger.info(f"Query normalized: '{text}' -> '{normalized}' (entities: {matched_entities})")
+	return normalized,matched_entities
+def get_entity_hints(matched_entities):
+	if not matched_entities:return''
+	hints=[]
+	for(column,value)in matched_entities.items():
+		if column in(_AI,_AJ):hints.append(f"- Use {column} = '{value.lower()}' in WHERE clause")
+		elif column==_AH:hints.append(f"- Use incident_name LIKE '%{value}%' or incident_name = '{value}' in WHERE clause")
+		elif column in(_AG,_AK,_AL):hints.append(f"- Use {column} = '{value}' in WHERE clause")
+	return'\n'.join(hints)
+def expand_room_reference(text):
+	pattern=re.compile('\\b(?:room|rm)\\s*#?\\s*(\\d+)\\b',re.IGNORECASE)
+	def replace_room(match):room_num=match.group(1);return f"Room {room_num}"
+	return pattern.sub(replace_room,text)
+def preprocess_query(text):processed=expand_room_reference(text);processed,matched_entities=normalize_query(processed);hints=get_entity_hints(matched_entities);return processed,matched_entities,hints
+def clear_normalization_cache():normalize_query.cache_clear();logger.info('Query normalization cache cleared')

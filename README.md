@@ -41,6 +41,21 @@ Logs: `logs/api.log`
 Swagger UI: `http://localhost:8000/docs`  
 GM Dashboard: `http://localhost:8000/dashboard`
 
+### Docker
+
+```bash
+# Configure runtime secrets locally; this file is not copied into the image
+cp .env.example .env
+
+# Build and run
+docker compose up --build
+
+# Or run an already-built image
+docker run --rm --env-file .env -p 8000:8000 gcp-erchat-api:latest
+```
+
+If the model needs GPU acceleration, run Docker with NVIDIA container runtime support and pass GPU access, for example `docker run --gpus all ...`.
+
 ---
 
 ## Environment Variables

@@ -1,1 +1,0 @@
-./scripts/git_push.sh "Your commit message"

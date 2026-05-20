@@ -28,11 +28,6 @@ ENV/
 *.swo
 *~
 
-# Application logs
-logs/*.log
-logs/*.json
-*.log
-
 # Data & Models
 data/
 *.ckpt
@@ -51,3 +46,7 @@ data/
 
 # Backup files
 *.bak
+
+inert/
+
+CLAUDE.md

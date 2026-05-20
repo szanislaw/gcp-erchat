@@ -1,322 +1,57 @@
-# app/display_hint.py
-# Determines the recommended display type for query results
-
+_D='line'
+_C='table'
+_B='bar'
+_A='metric'
 import re
-from typing import Dict, Any, List, Optional
-
-
-def get_display_type_from_question(question: str) -> Optional[str]:
-    """
-    Determine display type based on the user's natural language question.
-    This is used BEFORE SQL generation to hardcode the display type for known patterns.
-
-    Priority:
-    1. Exact match in QUERY_DISPLAY_TYPE_MAP (for demo questions)
-    2. Pattern matching (regex-based detection)
-
-    Returns:
-        Display type string or None if no pattern matches (fallback to auto-detection)
-    """
-    q = question.lower().strip()
-
-    if q in QUERY_DISPLAY_TYPE_MAP:
-        return QUERY_DISPLAY_TYPE_MAP[q]
-
-    # LINE first — "trend" / "each day" would otherwise trigger metric
-    line_patterns = [
-        r'\btrend\b',
-        r'per (day|week|month|year)',
-        r'each (day|week|month|year)',
-        r'over (time|the)\b',
-        r'(daily|weekly|monthly|yearly) (trend|count|breakdown)',
-    ]
-    for pattern in line_patterns:
-        if re.search(pattern, q):
-            return "line"
-
-    # METRIC — single numeric answer
-    metric_patterns = [
-        r'^how many\b',
-        r'^what is the total\b',
-        r'^what is the average\b',
-        r'^what percentage\b',
-        r'^which .{0,40} has the most\b',
-        r'^what is the most common\b',
-        r'\bwere (completed|created|cancelled)\b.*(this|last).*(month|week|year)',
-        r'\bin the last \d+ (days?|weeks?|months?)\?$',
-        r'\bin the last (week|month|year)\?$',
-    ]
-    for pattern in metric_patterns:
-        if re.search(pattern, q):
-            if not re.search(r'\bby (category|department|severity|status|property|location|priority|type)\b', q):
-                if not re.search(r'\bgrouped by\b', q):
-                    return "metric"
-
-    # BAR — categorical comparisons
-    bar_patterns = [
-        r'count.*by (department|category|severity|property|status|priority|location|type)',
-        r'\bby (department|status|priority|location|severity|category|property)\b',
-        r'grouped by (department|status|priority|location|severity|category)',
-        r'per (department|location)\b',
-        r'which (department|category|severity)',
-        r'top \d+.*(department|location|status|priority|category|severity)',
-        r'(average|avg).*by (category|severity|department|status|location)',
-    ]
-    for pattern in bar_patterns:
-        if re.search(pattern, q):
-            return "bar"
-
-    # PIE — distribution / breakdown
-    pie_patterns = [
-        r'breakdown by (status|category|type)',
-        r'distribution (of|by)',
-    ]
-    for pattern in pie_patterns:
-        if re.search(pattern, q):
-            return "pie"
-
-    # TABLE — raw record listing
-    table_patterns = [
-        r'^show me (all|the)\b',
-        r'^show (recent|open|completed|cancelled|high|low|urgent)\b.*(order|maintenance|incident)',
-        r'^show.*(order|maintenance).*(last \d+|last week|last month|recent|from the)',
-        r'^show (the )?(most recent|\d+) (recent )?(incident|order|maintenance)',
-        r'^show recent\b',
-        r'most recent \d+',
-        r'\bordered by\b',
-        r'\blast \d+ days\b',
-    ]
-    for pattern in table_patterns:
-        if re.search(pattern, q):
-            return "table"
-
-    return None
-
-
-# Exact-match map for known demo/eval questions.
-# Checked FIRST before regex patterns and SQL analysis.
-# Keys are lowercased question text. Based on eval_maintenance.py QUESTIONS list.
-QUERY_DISPLAY_TYPE_MAP = {
-    # === METRIC — simple counts ===
-    "how many total maintenance orders are there?": "metric",
-    "how many maintenance orders are currently open?": "metric",
-    "how many maintenance orders have been completed?": "metric",
-    "how many maintenance orders are cancelled?": "metric",
-    "how many high priority maintenance orders are there?": "metric",
-    "how many low priority maintenance orders exist?": "metric",
-    "how many urgent maintenance orders are there?": "metric",
-
-    # === METRIC — date-filtered counts ===
-    "how many maintenance orders were created this month?": "metric",
-    "how many maintenance orders were created this week?": "metric",
-    "how many maintenance orders were created last week?": "metric",
-    "how many maintenance orders were completed this year?": "metric",
-    "how many maintenance orders were cancelled last month?": "metric",
-    "how many maintenance orders were created vs completed this month?": "metric",
-
-    # === METRIC — aggregations ===
-    "what percentage of maintenance orders are completed?": "metric",
-    "what is the most common maintenance order type?": "metric",
-    "which status has the most maintenance orders?": "metric",
-    "which location has the most maintenance orders?": "metric",
-
-    # === BAR — group-by comparisons ===
-    "show maintenance order count by status": "bar",
-    "show maintenance order count by priority": "bar",
-    "show maintenance order count by location": "bar",
-    "show maintenance order count grouped by department": "bar",
-    "which departments have open maintenance orders?": "bar",
-    "show high priority maintenance orders per department": "bar",
-    "show the top 5 departments with most maintenance orders": "bar",
-    "show maintenance orders created this month by department": "bar",
-    "show cancelled orders from last month grouped by priority": "bar",
-
-    # === LINE — time-series trends ===
-    "show the monthly trend of maintenance orders created": "line",
-    "show weekly maintenance order trend for this year": "line",
-    "how many maintenance orders were created each day this month?": "line",
-    "show trend of high priority orders by month": "line",
-
-    # === INCIDENT: METRIC — simple counts ===
-    "how many total incidents are there?": "metric",
-    "how many open incidents are there?": "metric",
-    "how many completed incidents?": "metric",
-    "how many cancelled incidents?": "metric",
-    "how many draft incidents are there?": "metric",
-    "how many high severity incidents?": "metric",
-    "how many critical severity incidents are there?": "metric",
-    "how many pending incidents?": "metric",
-
-    # === INCIDENT: METRIC — date-filtered counts ===
-    "how many incidents were created this month?": "metric",
-    "how many incidents were created this year?": "metric",
-    "how many incidents were created this week?": "metric",
-    "how many incidents were created last month?": "metric",
-    "how many incidents were created last week?": "metric",
-    "how many incidents were created in the last 30 days?": "metric",
-    "how many incidents were completed this month?": "metric",
-    "how many incidents were created in the last 7 days?": "metric",
-
-    # === INCIDENT: METRIC — combined filters ===
-    "how many high severity open incidents are there?": "metric",
-    "how many critical incidents are pending?": "metric",
-    "how many completed high severity incidents are there?": "metric",
-    "how many vip guest incidents are there?": "metric",
-    "how many high severity incidents were created this month?": "metric",
-    "how many open critical incidents are there?": "metric",
-
-    # === INCIDENT: METRIC — percentages & aggregates ===
-    "what percentage of incidents are completed?": "metric",
-    "what percentage of incidents are open?": "metric",
-    "what percentage of incidents are high or critical severity?": "metric",
-    "what percentage of incidents created this month are completed?": "metric",
-    "what is the average actual cost per incident?": "metric",
-    "what is the total actual cost of all incidents?": "metric",
-
-    # === INCIDENT: BAR — group-by breakdowns ===
-    "show incident count by status": "bar",
-    "show incident count by severity": "bar",
-    "show incident count by category": "bar",
-    "show incident count by department": "bar",
-    "which category has the most incidents?": "bar",
-    "which department has the most incidents?": "bar",
-    "show incident count by location": "bar",
-    "show top 5 incident categories": "bar",
-    "show average cost by category": "bar",
-    "show average cost by severity": "bar",
-    "show top 5 categories by average cost": "bar",
-
-    # === INCIDENT: LINE — time-series trends ===
-    "show the monthly incident trend": "line",
-    "show the weekly incident trend for this year": "line",
-    "show the daily incident trend this month": "line",
-    "show monthly trend of completed incidents": "line",
-    "show monthly incident count by severity": "line",
-    "show weekly trend of open incidents": "line",
-
-    # === INCIDENT: TABLE — listings ===
-    "show the 10 most recent incidents": "table",
-    "show the 5 most recent completed incidents": "table",
-    "show recent high severity incidents": "table",
-    "show recent incidents with their categories and status": "table",
-    "show the most recent vip guest incidents": "table",
-
-    # === TABLE — raw record listings ===
-    "what is the distribution of maintenance orders by status and priority?": "table",
-    "show high priority open maintenance orders": "table",
-    "show maintenance orders created in the last 30 days": "table",
-    "show orders created in the last 7 days": "table",
-    "show the 10 most recent maintenance orders": "table",
-    "what are the most recent 5 completed maintenance orders?": "table",
-}
-
-
-def get_display_type(sql: str, execution_data: Dict[str, Any], query_text: str = None) -> str:
-    """
-    Determine the recommended display type for query results.
-    Uses hardcoded heuristics based on SQL query patterns and result structure.
-
-    Display types:
-    - "line": Time series data with aggregations (best for line graphs)
-    - "bar": Categorical aggregations (best for bar charts)
-    - "pie": Single metric with categories (best for pie charts)
-    - "metric": Single numeric value (best for KPI cards)
-    - "table": Default tabular view (default for raw records)
-
-    Args:
-        sql: The SQL query that was executed
-        execution_data: The result data structure from Redshift
-        query_text: The original natural language query (optional, for hardcoded mappings)
-
-    Returns:
-        Display type as string
-    """
-    if query_text:
-        normalized_query = query_text.lower().strip()
-        if normalized_query in QUERY_DISPLAY_TYPE_MAP:
-            return QUERY_DISPLAY_TYPE_MAP[normalized_query]
-
-    if not execution_data or not execution_data.get("rows"):
-        return "table"
-
-    sql_lower = sql.lower()
-    columns = execution_data.get("columns", [])
-    rows = execution_data.get("rows", [])
-    row_count = len(rows)
-    col_count = len(columns)
-
-    if row_count == 1 and col_count == 1:
-        return "metric"
-
-    if row_count == 1 and col_count <= 3 and _has_aggregation(sql_lower):
-        return "metric"
-
-    if _is_time_series(sql_lower, columns) and _has_aggregation(sql_lower) and _has_group_by(sql_lower):
-        return "line"
-
-    if (col_count == 2 and row_count >= 2 and row_count <= 100 and
-            _has_aggregation(sql_lower) and _has_group_by(sql_lower)):
-        first_col = columns[0].lower()
-        if any(term in first_col for term in ['date', 'day', 'week', 'month', 'year', 'time']):
-            return "line"
-
-    if col_count == 2 and row_count <= 10 and _has_aggregation(sql_lower) and _has_group_by(sql_lower):
-        return "pie"
-
-    if _has_group_by(sql_lower) and _has_aggregation(sql_lower):
-        if row_count <= 50:
-            return "bar"
-        else:
-            return "table"
-
-    return "table"
-
-
-def _is_time_series(sql: str, columns: List[str]) -> bool:
-    """
-    Detect if query is likely a time series aggregation.
-    Requires:
-    - Time-related column in GROUP BY (not just in SELECT)
-    - Aggregation function (COUNT, SUM, etc.)
-    - Time-related grouping pattern
-    """
-    time_group_patterns = [
-        r'group\s+by\s+[^,]*\b(date|year|month|week|day)\b',
-        r'group\s+by\s+[^,]*date_trunc',
-        r'group\s+by\s+[^,]*extract\s*\(',
-        r'group\s+by\s+[^,]*snapshotdate',
-        r'group\s+by\s+[^,]*created_date',
-        r'group\s+by\s+[^,]*date\s*\(',
-        r'group\s+by\s+[^,]*cast\s*\([^)]*as\s+date',
-        r'group\s+by\s+[^,]*to_char\s*\(',
-        r'group\s+by\s+[^,]*date_format',
-        r'group\s+by\s+[^,]*from_unixtime',
-    ]
-
-    for pattern in time_group_patterns:
-        if re.search(pattern, sql, re.IGNORECASE):
-            return True
-
-    time_column_names = ['date', 'day', 'week', 'month', 'year', 'time', 'timestamp']
-    for col in columns:
-        col_lower = col.lower()
-        if any(time_term in col_lower for time_term in time_column_names):
-            if re.search(r'group\s+by', sql, re.IGNORECASE):
-                return True
-
-    return False
-
-
-def _has_group_by(sql: str) -> bool:
-    """Check if SQL contains GROUP BY clause."""
-    return bool(re.search(r'\bgroup\s+by\b', sql))
-
-
-def _has_aggregation(sql: str) -> bool:
-    """Check if SQL contains aggregation functions."""
-    agg_functions = [
-        r'\bcount\s*\(', r'\bsum\s*\(', r'\bavg\s*\(',
-        r'\bmin\s*\(', r'\bmax\s*\(', r'\bstddev\s*\(',
-        r'\bvariance\s*\('
-    ]
-    return any(re.search(pattern, sql) for pattern in agg_functions)
+from typing import Dict,Any,List,Optional
+def get_display_type_from_question(question):
+	q=question.lower().strip()
+	if q in QUERY_DISPLAY_TYPE_MAP:return QUERY_DISPLAY_TYPE_MAP[q]
+	line_patterns=['\\btrend\\b','per (day|week|month|year)','each (day|week|month|year)','over (time|the)\\b','(daily|weekly|monthly|yearly) (trend|count|breakdown)']
+	for pattern in line_patterns:
+		if re.search(pattern,q):return _D
+	metric_patterns=['^how many\\b','^what is the total\\b','^what is the average\\b','^what percentage\\b','^which .{0,40} has the most\\b','^what is the most common\\b','\\bwere (completed|created|cancelled)\\b.*(this|last).*(month|week|year)','\\bin the last \\d+ (days?|weeks?|months?)\\?$','\\bin the last (week|month|year)\\?$']
+	for pattern in metric_patterns:
+		if re.search(pattern,q):
+			if not re.search('\\bby (category|department|severity|status|property|location|priority|type)\\b',q):
+				if not re.search('\\bgrouped by\\b',q):return _A
+	bar_patterns=['count.*by (department|category|severity|property|status|priority|location|type)','\\bby (department|status|priority|location|severity|category|property)\\b','grouped by (department|status|priority|location|severity|category)','per (department|location)\\b','which (department|category|severity)','top \\d+.*(department|location|status|priority|category|severity)','(average|avg).*by (category|severity|department|status|location)']
+	for pattern in bar_patterns:
+		if re.search(pattern,q):return _B
+	pie_patterns=['breakdown by (status|category|type)','distribution (of|by)']
+	for pattern in pie_patterns:
+		if re.search(pattern,q):return'pie'
+	table_patterns=['^show me (all|the)\\b','^show (recent|open|completed|cancelled|high|low|urgent)\\b.*(order|maintenance|incident)','^show.*(order|maintenance).*(last \\d+|last week|last month|recent|from the)','^show (the )?(most recent|\\d+) (recent )?(incident|order|maintenance)','^show recent\\b','most recent \\d+','\\bordered by\\b','\\blast \\d+ days\\b']
+	for pattern in table_patterns:
+		if re.search(pattern,q):return _C
+QUERY_DISPLAY_TYPE_MAP={'how many total maintenance orders are there?':_A,'how many maintenance orders are currently open?':_A,'how many maintenance orders have been completed?':_A,'how many maintenance orders are cancelled?':_A,'how many high priority maintenance orders are there?':_A,'how many low priority maintenance orders exist?':_A,'how many urgent maintenance orders are there?':_A,'how many maintenance orders were created this month?':_A,'how many maintenance orders were created this week?':_A,'how many maintenance orders were created last week?':_A,'how many maintenance orders were completed this year?':_A,'how many maintenance orders were cancelled last month?':_A,'how many maintenance orders were created vs completed this month?':_A,'what percentage of maintenance orders are completed?':_A,'what is the most common maintenance order type?':_A,'which status has the most maintenance orders?':_A,'which location has the most maintenance orders?':_A,'show maintenance order count by status':_B,'show maintenance order count by priority':_B,'show maintenance order count by location':_B,'show maintenance order count grouped by department':_B,'which departments have open maintenance orders?':_B,'show high priority maintenance orders per department':_B,'show the top 5 departments with most maintenance orders':_B,'show maintenance orders created this month by department':_B,'show cancelled orders from last month grouped by priority':_B,'show the monthly trend of maintenance orders created':_D,'show weekly maintenance order trend for this year':_D,'how many maintenance orders were created each day this month?':_D,'show trend of high priority orders by month':_D,'how many total incidents are there?':_A,'how many open incidents are there?':_A,'how many completed incidents?':_A,'how many cancelled incidents?':_A,'how many draft incidents are there?':_A,'how many high severity incidents?':_A,'how many critical severity incidents are there?':_A,'how many pending incidents?':_A,'how many incidents were created this month?':_A,'how many incidents were created this year?':_A,'how many incidents were created this week?':_A,'how many incidents were created last month?':_A,'how many incidents were created last week?':_A,'how many incidents were created in the last 30 days?':_A,'how many incidents were completed this month?':_A,'how many incidents were created in the last 7 days?':_A,'how many high severity open incidents are there?':_A,'how many critical incidents are pending?':_A,'how many completed high severity incidents are there?':_A,'how many vip guest incidents are there?':_A,'how many high severity incidents were created this month?':_A,'how many open critical incidents are there?':_A,'what percentage of incidents are completed?':_A,'what percentage of incidents are open?':_A,'what percentage of incidents are high or critical severity?':_A,'what percentage of incidents created this month are completed?':_A,'what is the average actual cost per incident?':_A,'what is the total actual cost of all incidents?':_A,'show incident count by status':_B,'show incident count by severity':_B,'show incident count by category':_B,'show incident count by department':_B,'which category has the most incidents?':_B,'which department has the most incidents?':_B,'show incident count by location':_B,'show top 5 incident categories':_B,'show average cost by category':_B,'show average cost by severity':_B,'show top 5 categories by average cost':_B,'show the monthly incident trend':_D,'show the weekly incident trend for this year':_D,'show the daily incident trend this month':_D,'show monthly trend of completed incidents':_D,'show monthly incident count by severity':_D,'show weekly trend of open incidents':_D,'show the 10 most recent incidents':_C,'show the 5 most recent completed incidents':_C,'show recent high severity incidents':_C,'show recent incidents with their categories and status':_C,'show the most recent vip guest incidents':_C,'what is the distribution of maintenance orders by status and priority?':_C,'show high priority open maintenance orders':_C,'show maintenance orders created in the last 30 days':_C,'show orders created in the last 7 days':_C,'show the 10 most recent maintenance orders':_C,'what are the most recent 5 completed maintenance orders?':_C}
+def get_display_type(sql,execution_data,query_text=None):
+	A='rows'
+	if query_text:
+		normalized_query=query_text.lower().strip()
+		if normalized_query in QUERY_DISPLAY_TYPE_MAP:return QUERY_DISPLAY_TYPE_MAP[normalized_query]
+	if not execution_data or not execution_data.get(A):return _C
+	sql_lower=sql.lower();columns=execution_data.get('columns',[]);rows=execution_data.get(A,[]);row_count=len(rows);col_count=len(columns)
+	if row_count==1 and col_count==1:return _A
+	if row_count==1 and col_count<=3 and _has_aggregation(sql_lower):return _A
+	if _is_time_series(sql_lower,columns)and _has_aggregation(sql_lower)and _has_group_by(sql_lower):return _D
+	if col_count==2 and row_count>=2 and row_count<=100 and _has_aggregation(sql_lower)and _has_group_by(sql_lower):
+		first_col=columns[0].lower()
+		if any(term in first_col for term in['date','day','week','month','year','time']):return _D
+	if col_count==2 and row_count<=10 and _has_aggregation(sql_lower)and _has_group_by(sql_lower):return'pie'
+	if _has_group_by(sql_lower)and _has_aggregation(sql_lower):
+		if row_count<=50:return _B
+		else:return _C
+	return _C
+def _is_time_series(sql,columns):
+	time_group_patterns=['group\\s+by\\s+[^,]*\\b(date|year|month|week|day)\\b','group\\s+by\\s+[^,]*date_trunc','group\\s+by\\s+[^,]*extract\\s*\\(','group\\s+by\\s+[^,]*snapshotdate','group\\s+by\\s+[^,]*created_date','group\\s+by\\s+[^,]*date\\s*\\(','group\\s+by\\s+[^,]*cast\\s*\\([^)]*as\\s+date','group\\s+by\\s+[^,]*to_char\\s*\\(','group\\s+by\\s+[^,]*date_format','group\\s+by\\s+[^,]*from_unixtime']
+	for pattern in time_group_patterns:
+		if re.search(pattern,sql,re.IGNORECASE):return True
+	time_column_names=['date','day','week','month','year','time','timestamp']
+	for col in columns:
+		col_lower=col.lower()
+		if any(time_term in col_lower for time_term in time_column_names):
+			if re.search('group\\s+by',sql,re.IGNORECASE):return True
+	return False
+def _has_group_by(sql):return bool(re.search('\\bgroup\\s+by\\b',sql))
+def _has_aggregation(sql):agg_functions=['\\bcount\\s*\\(','\\bsum\\s*\\(','\\bavg\\s*\\(','\\bmin\\s*\\(','\\bmax\\s*\\(','\\bstddev\\s*\\(','\\bvariance\\s*\\('];return any(re.search(pattern,sql)for pattern in agg_functions)

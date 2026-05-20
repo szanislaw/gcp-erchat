@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NLQ → Redshift SQL — Technical Pipeline Documentation</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+      font-size: 14px;
+      line-height: 1.5;
+      color: #1f2328;
+      background-color: #ffffff;
+      margin: 0;
+      padding: 24px;
+    }
+    .markdown-body {
+      max-width: 1012px;
+      margin: 0 auto;
+      padding: 45px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+    }
+    @media (max-width: 767px) {
+      body { padding: 12px; }
+      .markdown-body { padding: 16px; border: none; }
+    }
+    
+    /* Headers & Navigation */
+    .repo-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid #d0d7de;
+    }
+    .repo-title { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .repo-nav { display: flex; gap: 8px; }
+    .nav-btn {
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 20px;
+      color: #0969da;
+      background-color: #f6f8fa;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      text-decoration: none;
+    }
+    .nav-btn:hover { background-color: #f3f4f6; }
+    
+    h1 { font-size: 2em; font-weight: 600; padding-bottom: 0.3em; border-bottom: 1px solid #eee; margin-top: 0; margin-bottom: 16px; }
+    h2 { font-size: 1.5em; font-weight: 600; padding-bottom: 0.3em; border-bottom: 1px solid #d0d7de; margin-top: 24px; margin-bottom: 16px; }
+    h3 { font-size: 1.25em; font-weight: 600; margin-top: 24px; margin-bottom: 16px; }
+    p, ul, ol { margin-top: 0; margin-bottom: 16px; }
+    ul, ol { padding-left: 2em; }
+    li { margin-top: 0.25em; }
+    
+    code {
+      padding: 0.2em 0.4em;
+      margin: 0;
+      font-size: 85%;
+      background-color: rgba(175,184,193,0.2);
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+    }
+    pre {
+      padding: 16px;
+      overflow: auto;
+      font-size: 85%;
+      line-height: 1.45;
+      background-color: #f6f8fa;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+    pre code { background-color: transparent; padding: 0; border-radius: 0; font-size: 100%; white-space: pre; }
+    
+    /* Callouts */
+    .flash-callout {
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid #d0d7de;
+      border-left: 4px solid #0969da;
+      border-radius: 6px;
+      background-color: #ddf4ff;
+      color: #0969da;
+    }
+    .flash-callout-warn {
+      border-left-color: #9a6700;
+      background-color: #fff8ec;
+      color: #765400;
+    }
+    
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin-top: 0; margin-bottom: 16px; }
+    th, td { padding: 6px 13px; border: 1px solid #d0d7de; }
+    tr { background-color: #ffffff; border-top: 1px solid #d0d7de; }
+    tr:nth-child(2n) { background-color: #f6f8fa; }
+    th { font-weight: 600; background-color: #f6f8fa; }
+    
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 2em;
+    }
+    .badge-blue { background-color: #ddf4ff; color: #0969da; }
+    .badge-purple { background-color: #fbefff; color: #8250df; }
+    
+    .diagram-wrap {
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background-color: #f6f8fa;
+    }
+  </style>
+</head>
+<body>
+
+<div class="markdown-body">
+  <div class="repo-header">
+    <div class="repo-title">
+      <span>📁</span>
+      <a href="#">NLQ-Analytics-API</a>
+      <span>/</span>
+      <strong>technical_pipeline.html</strong>
+    </div>
+    <div class="repo-nav">
+      <a class="nav-btn" href="pipeline_overview.html">← View Overview</a>
+    </div>
+  </div>
+
+  <h1>Technical Pipeline Documentation</h1>
+  <p>Detailed architecture, orchestration parameters, module layouts, and post-processing table references for the <code>defog/sqlcoder-7b-2</code> translation service.</p>
+
+  <h2>System Architecture Diagram</h2>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+    Client([HTTP Client]) -->|POST /nlq/execute| A[Input Validator
+app/input_validator.py]
+    A -->|sanitized text| B[Rate Limiter
+app/rate_limiter.py]
+    B -->|allowed| C[Target Resolver
+app/redshift_config.py]
+    C -->|target config| D[Prompt Builder
+app/prompt.py]
+    
+    D --> D1[Schema Loader]
+    D --> D2[Query Normalizer]
+    D -->|full SQLCoder prompt| E[Model Inference
+app/sqlcoder.py]
+    
+    E --> E1{LRU Cache}
+    E1 -->|miss| E2[defog/sqlcoder-7b-2
+GPU / float16]
+    E1 -->|hit| E3[extract_sql]
+    E2 --> E3
+    E3 -->|SQL draft| F[Stage B Post-Processing
+app/main.py]
+    F -->|fixed SQL| G[SQL Validator
+app/security.py]
+    G -->|valid SQL| J[Redshift Execution
+app/redshift_client.py]
+    J -->|RuntimeError| L[Self-Correction Loop
+max 2 retries]
+    L --> J
+    J -->|success| K[Display Hint / Formatter]
+    K --> O[JSON Response Assembly]
+    O --> Client
+    </div>
+  </div>
+
+  <h2>Core Pipeline Specification</h2>
+  
+  <h3>1. Input Validation &amp; Boundary Defense</h3>
+  <p>Located inside <code>app/input_validator.py</code>. Rejects threats before touching internal resources:</p>
+  <ul>
+    <li><strong>Length Checks:</strong> Blocks input strings outside of the 2-2000 character boundaries.</li>
+    <li><strong>XSS Scans:</strong> Leverages 9 target regex vectors checking for malicious payloads (e.g., <code>&lt;script&gt;</code>, <code>javascript:</code>, inline handlers).</li>
+    <li><strong>In-Text SQLi Protection:</strong> Evaluates 12 patterns checking for query breaks embedded inside natural phrasing text (e.g., <code>; DROP</code>, <code>UNION SELECT</code>).</li>
+  </ul>
+
+  <h3>2. Rate Limiting</h3>
+  <p>Located inside <code>app/rate_limiter.py</code>. Implements a token bucket algorithm restricting workloads to a hard threshold of <strong>2 requests per second</strong> with a burst tolerance up to 10. Exceeded requests immediately fail fast with a <code>HTTP 429 Too Many Requests</code> status code.</p>
+
+  <h3>3. Contextual Prompt Assembly</h3>
+  <p>The framework assembles structural schemas formatted explicitly as SQL DDL definitions matching the underlying model's core training patterns:</p>
+  <ul>
+    <li><strong>DDL Serialization:</strong> Translates cached active schemas directly to standard <code>CREATE TABLE</code> syntax strings.</li>
+    <li><strong>ENUM Guards:</strong> Loads <code>DISTINCT</code> field constraints into the prompt context block to eliminate hallucinated filters.</li>
+    <li><strong>Access Control Constraints:</strong> Injects necessary <code>WHERE property_uuid IN (...)</code> requirements automatically into the workspace constraints text.</li>
+  </ul>
+
+  <pre><code>### Task
+Generate a SQL query to answer [QUESTION]{normalized_text}[/QUESTION]
+{domain_instructions}
+{property_restriction}
+
+### Database Schema
+{DDL CREATE TABLE statements}
+
+### Answer
+[SQL]</code></pre>
+
+  <h3>4. Execution &amp; GPU Memory Config</h3>
+  <p>Runs inside <code>app/sqlcoder.py</code> leveraging standard greedy decoding structures (<code>do_sample=False</code>, <code>num_beams=1</code>). Shipped defaults execute via <strong>float16</strong> operations pulling roughly ~13 GB of VRAM. If resources are restricted, toggling <code>USE_QUANTIZATION=true</code> converts calculations into a compressed 4-bit NF4 structure reducing overhead to ~5 GB.</p>
+
+  <div class="flash-callout">
+    <strong>LRU Cache Architecture:</strong> A 500-entry memory matrix indexes calculations utilizing MD5 hashes derived from combined prompt configurations. Cache matches execute inside 0ms by routing directly around the GPU processor.
+  </div>
+
+  <h2>SQL Post-Processing Engine</h2>
+  <p>Fixes are intentionally split across sequential execution boundaries to enforce isolation parameters:</p>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Fixer Function</th>
+        <th>Pipeline Stage</th>
+        <th>Core Structural Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>fix_date_parse_to_to_date</code></td>
+        <td>Stage A (sqlcoder.py)</td>
+        <td>Transforms Athena-styled <code>date_parse</code> commands into valid Redshift <code>TO_DATE()</code> syntaxes.</td>
+      </tr>
+      <tr>
+        <td><code>fix_date_add_to_dateadd</code></td>
+        <td>Stage A (sqlcoder.py)</td>
+        <td>Converts unmapped ANSI/Presto <code>date_add</code> intervals over to <code>DATEADD</code> structures.</td>
+      </tr>
+      <tr>
+        <td><code>fix_table_names</code></td>
+        <td>Stage B (main.py)</td>
+        <td>Resolves hallucinated or malformed plural strings into verified whitelist physical target relations.</td>
+      </tr>
+      <tr>
+        <td><code>fix_spurious_department_join</code></td>
+        <td>Stage B (main.py)</td>
+        <td>Prunes unnecessary tables and hanging dependencies generated from model logic fallouts.</td>
+      </tr>
+      <tr>
+        <td><code>inject_property_filter</code></td>
+        <td>Stage B (main.py)</td>
+        <td>Acts as a critical fallback forcing secure multitenancy parameters into missing query frames.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Automated Self-Correction Architecture</h2>
+  <p>When database operations encounter a <code>RuntimeError</code> layout, an integrated error handler initializes an automatic context correction cycle:</p>
+  
+  <div class="diagram-wrap">
+    <div class="mermaid">
+sequenceDiagram
+    participant M as app/main.py
+    participant RS as AWS Redshift
+    participant SC as app/sqlcoder.py
+    
+    M->>RS: Submit Generated SQL Query (Attempt 0)
+    RS-->>M: Return SQL Execution Error Code Context
+    M->>M: Build Contextual Error Resolution Prompt
+    M->>SC: Route Correction Query to GPU Engine
+    SC-->>M: Return Reparsed SQL Draft String
+    M->>RS: Submit Corrected SQL Query (Attempt 1)
+    Note over M,RS: Process scales up to a maximum limit of 2 total correction retries.
+    </div>
+  </div>
+
+  <div class="flash-callout flash-callout-warn">
+    <strong>Connection Allocation Overhead:</strong> Each distinct calculation request queries a fresh individual password-authenticated lifecycle sequence. This deliberate state isolation setup brings an expected ~50-100ms environment connection latency.
+  </div>
+
+  <h2>Operational Endpoints Reference</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 15%;">Method</th>
+        <th style="width: 30%;">Path</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-blue" style="background-color:#dafbe1; color:#1a7f37;">POST</span></td>
+        <td><code>/nlq/execute</code></td>
+        <td>Primary intake route translating text questions into actionable formatted dataset streams.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue" style="background-color:#ddf4ff; color:#0969da;">GET</span></td>
+        <td><code>/nlq/suggestions</code></td>
+        <td>Provides schema-aware autocomplete natural language phrasings suitable for UI use.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue" style="background-color:#ddf4ff; color:#0969da;">GET</span></td>
+        <td><code>/health</code></td>
+        <td>Returns node operational tracking states along with active rate limiter metrics.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue" style="background-color:#ddf4ff; color:#0969da;">GET</span></td>
+        <td><code>/logs</code></td>
+        <td>Exposes the runtime traces dashboard (buffers trailing 100 processing transactions).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #d0d7de; font-size: 12px; color: #57606a; text-align: center;">
+    NLQ System Documentation Core Hub • Confidential Integration Blueprint Data
+  </div>
+</div>
+
+</body>
+</html>

@@ -52,12 +52,19 @@ echo ""
 # 4. Start FastAPI
 echo -e "${YELLOW}[4/4] Starting FastAPI backend...${NC}"
 
-# Stop any existing process
-pkill -f "uvicorn app.main:app" 2>/dev/null
-sleep 1
-if pgrep -f "uvicorn app.main:app" > /dev/null; then
-    pkill -9 -f "uvicorn app.main:app" 2>/dev/null
-    sleep 1
+# Stop any existing process recorded by the previous startup.
+if [ -f "logs/api.pid" ]; then
+    OLD_PID=$(cat logs/api.pid)
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+        echo -e "${YELLOW}⚠ Stopping existing FastAPI process (PID: $OLD_PID)...${NC}"
+        kill "$OLD_PID" 2>/dev/null
+        sleep 2
+        if kill -0 "$OLD_PID" 2>/dev/null; then
+            kill -9 "$OLD_PID" 2>/dev/null
+            sleep 1
+        fi
+    fi
+    rm -f logs/api.pid
 fi
 
 mkdir -p logs
@@ -67,7 +74,7 @@ FASTAPI_PID=$!
 echo $FASTAPI_PID > logs/api.pid
 
 sleep 3
-if ps -p $FASTAPI_PID > /dev/null; then
+if kill -0 "$FASTAPI_PID" 2>/dev/null; then
     echo -e "${GREEN}✓ FastAPI started (PID: $FASTAPI_PID)${NC}"
 else
     echo -e "${RED}✗ FastAPI failed to start — check logs/api.log${NC}"
